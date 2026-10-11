@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>AXAP AX 콘솔</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@600;800&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an operations console that follows one customer from diagnosis to voucher project to agent run to operations — tabs in that order, assumptions always editable and labelled */
+:root {
+  --bg: #F3F4F7; --surface: #FFFFFF; --sunk: #E9EBF1; --ink: #191D29; --muted: #5A6072; --line: #D4D8E2;
+  --accent: #2443B8; --accent-soft: #E3E8FA; --on-accent: #FFFFFF;
+  --ask: #A35A00; --ask-soft: #FCEBD3; --ok: #23784A; --ok-soft: #DFF1E6; --crit: #B42A22; --crit-soft: #FBE3E0;
+  --f-display: 'Gothic A1', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --f-body: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10131B; --surface: #181C27; --sunk: #131722; --ink: #E4E7F0; --muted: #98A0B4; --line: #2B3142;
+  --accent: #8FA4F5; --accent-soft: #1F2742; --on-accent: #10131B;
+  --ask: #F0B45A; --ask-soft: #3A2C17; --ok: #6CC793; --ok-soft: #173126; --crit: #F28B83; --crit-soft: #3B1D1B; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10131B; --surface: #181C27; --sunk: #131722; --ink: #E4E7F0; --muted: #98A0B4; --line: #2B3142;
+  --accent: #8FA4F5; --accent-soft: #1F2742; --on-accent: #10131B;
+  --ask: #F0B45A; --ask-soft: #3A2C17; --ok: #6CC793; --ok-soft: #173126; --crit: #F28B83; --crit-soft: #3B1D1B; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.55; padding-inline: 16px; padding-block: 0 40px }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px }
+.wrap > * { min-width: 0 }
+header.top { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: flex-end; justify-content: space-between; padding-block: 20px 0; border-bottom: 1px solid var(--line) }
+.brand h1 { font-family: var(--f-display); font-weight: 800; font-size: 1.55rem; margin: 0; letter-spacing: -0.01em }
+.brand h1 span { color: var(--accent) }
+.brand p { margin: 2px 0 10px; color: var(--muted); font-size: .86rem }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-bottom: 10px; font-size: .78rem; color: var(--muted) }
+.flow b { color: var(--ink); font-weight: 500 }
+.flow i { font-style: normal; color: var(--accent) }
+nav.tabs { min-width: 0; max-width: 100%; flex-basis: 100%; display: flex; gap: 4px; overflow-x: auto }
+nav.tabs button { flex: none; font: inherit; font-weight: 500; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 12px; cursor: pointer }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent) }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.notice { font-size: .82rem; color: var(--muted); background: var(--sunk); border-radius: var(--r); padding: 8px 12px; margin: 0 }
+section.view { display: grid; gap: 16px }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; min-width: 0 }
+.panel h2 { font-family: var(--f-display); font-weight: 600; font-size: 1.04rem; margin: 0 0 10px }
+.panel h3 { font-size: .9rem; margin: 14px 0 8px }
+.sub { color: var(--muted); font-size: .84rem; margin: -4px 0 12px }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px }
+.g-side { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px }
+@media (max-width: 880px) { .grid2, .g-side { grid-template-columns: minmax(0, 1fr) } }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px }
+.kpi .l { font-size: .74rem; color: var(--muted); letter-spacing: .04em }
+.kpi .v { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums }
+.kpi .s { font-size: .78rem; color: var(--muted) }
+.tbl { overflow-x: auto }
+table { border-collapse: collapse; width: 100%; font-size: .86rem }
+.tbl table { min-width: 600px }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle }
+th { font-size: .74rem; color: var(--muted); font-weight: 500; letter-spacing: .03em; white-space: nowrap }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums }
+td input[type="number"] { width: 64px }
+.mono { font-family: var(--f-mono); font-size: .8rem }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .76rem; font-weight: 500; white-space: nowrap }
+.p-quick { background: var(--ok-soft); color: var(--ok) } .p-next { background: var(--accent-soft); color: var(--accent) } .p-data { background: var(--ask-soft); color: var(--ask) }
+.p-crit { background: var(--crit-soft); color: var(--crit) } .p-ask { background: var(--ask-soft); color: var(--ask) } .p-mute { background: var(--sunk); color: var(--muted) }
+label.f { display: grid; gap: 4px; font-size: .82rem; color: var(--muted) }
+select, input[type="text"], input[type="number"], textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100% }
+textarea { min-height: 96px; resize: vertical }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px }
+.btn { font: inherit; font-weight: 500; border-radius: 6px; padding: 7px 14px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent) }
+.btn.ghost { background: transparent; color: var(--accent) }
+.btn.warn { background: transparent; color: var(--crit); border-color: var(--crit) }
+.btn:disabled { opacity: .45; cursor: not-allowed }
+.stage { display: grid; gap: 6px; padding: 10px 12px; border-radius: var(--r); background: var(--sunk) }
+.stage h4 { margin: 0; font-size: .86rem }
+.stage .items { display: flex; flex-wrap: wrap; gap: 6px }
+.bar { height: 8px; background: var(--sunk); border-radius: 4px; overflow: hidden; min-width: 60px }
+.bar i { display: block; height: 100% ; background: var(--accent) }
+.steps { display: grid; gap: 10px }
+.step { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r) }
+.step .n { font-family: var(--f-mono); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--sunk); font-size: .8rem }
+.step.done .n { background: var(--ok-soft); color: var(--ok) } .step.waiting { border-color: var(--ask) } .step.waiting .n { background: var(--ask-soft); color: var(--ask) }
+.step.rejected .n { background: var(--crit-soft); color: var(--crit) } .step.locked { opacity: .55 }
+.step .a { font-size: .78rem; color: var(--muted) }
+.step .act { display: flex; gap: 6px; flex-wrap: wrap }
+@media (max-width: 560px) { .step { grid-template-columns: auto minmax(0, 1fr) } .step .act { grid-column: 1 / -1 } }
+.out { white-space: pre-wrap; background: var(--sunk); border-radius: var(--r); padding: 12px; font-size: .86rem; min-height: 60px; max-height: 460px; overflow: auto }
+.hint { font-size: .8rem; color: var(--muted) }
+.qrow { display: grid; grid-template-columns: minmax(0, 1fr) 54px 64px; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: .84rem }
+.big { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums }
+.gate { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line) }
+.gate input { accent-color: var(--accent) }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: .84rem; opacity: 0; transition: opacity .2s; pointer-events: none }
+.toast.on { opacity: 1 }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><span>AXAP</span> AX 콘솔</h1>
+      <p><span id="coName"></span> · 진단에서 운영까지 한 화면에서 따라가는 프로토타입</p>
+    </div>
+    <div class="flow" aria-label="영업 흐름"><b>AX 진단</b><i>→</i><b>바우처 과제</b><i>→</i><b>승인 기반 실행</b><i>→</i><b>운영 대행</b></div>
+    <nav class="tabs" role="tablist" aria-label="화면">
+      <button role="tab" data-t="diag" aria-selected="true">AX 진단</button>
+      <button role="tab" data-t="voucher" aria-selected="false">바우처 패키지</button>
+      <button role="tab" data-t="run" aria-selected="false">에이전트 실행</button>
+      <button role="tab" data-t="ops" aria-selected="false">IntOps · PII Shield</button>
+      <button role="tab" data-t="foundry" aria-selected="false">Foundry</button>
+    </nav>
+  </header>
+  <p class="notice">회사·업무·질의·금액은 모두 가상 데이터와 사용자가 바꿀 수 있는 가정값입니다. 실제 바우처 조건과 모델 단가는 공고와 계약으로 확인해야 합니다.</p>
+
+  <section class="view" id="v-diag">
+    <div class="kpis" id="dKpis"></div>
+    <div class="g-side">
+      <div class="panel">
+        <h2>업무 설문 (AI Strategy Architect)</h2>
+        <p class="sub">업무별 주간 소요 시간과 인원, 규칙성·데이터 준비도(1~5)를 고치면 점수가 바로 바뀝니다.</p>
+        <div class="tbl"><table><thead><tr><th>업무</th><th>부서</th><th class="num">시간/주</th><th class="num">인원</th><th class="num">규칙성</th><th class="num">데이터</th><th>개인정보</th></tr></thead><tbody id="dRows"></tbody></table></div>
+        <label class="f" style="margin-top:10px;max-width:280px">자동화 비율 가정 <span><b id="dRateV" class="mono"></b></span><input type="range" id="dRate" min="0.1" max="0.6" step="0.05" value="0.3"></label>
+      </div>
+      <div class="panel">
+        <h2>진단 결과와 로드맵</h2>
+        <div class="tbl"><table><thead><tr><th>순위</th><th>업무</th><th class="num">점수</th><th>분류</th><th class="num">절감 h/주</th></tr></thead><tbody id="dResult"></tbody></table></div>
+        <h3>단계별 로드맵</h3>
+        <div class="steps" id="dRoad"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>바우처 과제계획서 초안 (AI)</h2>
+      <p class="sub">진단 결과로 AI 바우처 수요기업 과제계획서의 도입 목표·범위·효과 지표 초안을 만듭니다. 처음 누르면 Claude 사용 동의를 묻습니다.</p>
+      <div class="row"><button class="btn" id="dAi">초안 만들기</button><button class="btn ghost" id="dStop" hidden>중지</button></div>
+      <p class="hint" id="dAiNote"></p>
+      <div class="out" id="dAiOut">아직 초안이 없습니다.</div>
+    </div>
+  </section>
+
+  <section class="view" id="v-voucher" hidden>
+    <div class="grid2">
+      <div class="panel">
+        <h2>바우처 도입 패키지 (과제 1건)</h2>
+        <p class="sub">과제 금액과 민간 부담 비율은 2027년 공고로 확인할 값입니다. 여기서는 가정으로 계산합니다.</p>
+        <div class="fields">
+          <label class="f">과제 금액(원)<input type="number" id="vAmt" step="10000000" value="100000000"></label>
+          <label class="f">민간 부담 비율(가정)<input type="number" id="vCopay" step="0.05" min="0" max="0.9" value="0.2"></label>
+          <label class="f">진단 비중<input type="number" id="vDiag" step="0.05" min="0" max="1" value="0.1"></label>
+          <label class="f">구축 비중<input type="number" id="vBuild" step="0.05" min="0" max="1" value="0.7"></label>
+          <label class="f">종료 후 요금제<select id="vPlan"><option value="5000000">Pro 월 500만 원</option><option value="1000000">Starter 월 100만 원</option></select></label>
+          <label class="f">종료 후 유지율(가정)<input type="number" id="vRetain" step="0.1" min="0" max="1" value="0.5"></label>
+        </div>
+        <p class="hint" id="vErr"></p>
+        <h3>과제 1건 결과</h3>
+        <div class="tbl"><table><tbody id="vOne"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <h2>연간 영업 깔때기</h2>
+        <div class="fields">
+          <label class="f">AX 진단 건수<input type="number" id="fDiag" value="20"></label>
+          <label class="f">바우처 과제 선정률(가정)<input type="number" id="fSel" step="0.05" min="0" max="1" value="0.3"></label>
+        </div>
+        <div class="kpis" id="fKpis" style="margin-top:12px"></div>
+        <p class="hint" id="fNote" style="margin-top:10px"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-run" hidden>
+    <div class="grid2">
+      <div class="panel">
+        <h2>승인 기반 에이전트 실행</h2>
+        <p class="sub">에이전트가 단계를 준비하고 사람이 승인해야 다음 단계로 넘어갑니다. 외부로 나가는 행동은 위험 등급이 높아 별도 확인을 거칩니다.</p>
+        <label class="f">대상 업무<select id="rProc"></select></label>
+        <div class="row" style="margin:10px 0"><label class="f" style="min-width:180px">승인자<input type="text" id="rWho" value="품질팀장(가상)"></label><button class="btn ghost" id="rReset" style="align-self:flex-end">처음부터</button></div>
+        <div class="steps" id="rSteps"></div>
+      </div>
+      <div class="panel">
+        <h2>실행·승인 기록</h2>
+        <p class="sub">이 기록은 고객의 AI 기본법 「사람의 관리·감독」 증적으로 쓸 수 있습니다.</p>
+        <div class="tbl"><table><thead><tr><th>시각</th><th>단계</th><th>결정</th><th>승인자</th></tr></thead><tbody id="rLog"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-ops" hidden>
+    <div class="grid2">
+      <div class="panel">
+        <h2>모델 라우팅 시뮬레이션 (IntOps Guardian)</h2>
+        <p class="sub">질의 난이도가 기준 이상이면 고성능 모델, 아니면 경량 모델로 보냅니다. 단가는 계약 전 가정값입니다.</p>
+        <div class="fields">
+          <label class="f">난이도 기준 <span><b id="oThV" class="mono"></b></span><input type="range" id="oTh" min="0.2" max="0.9" step="0.05" value="0.5"></label>
+          <label class="f">경량 1건 단가(원, 가정)<input type="number" id="oL" value="5"></label>
+          <label class="f">고성능 1건 단가(원, 가정)<input type="number" id="oH" value="50"></label>
+          <label class="f">월 질의 수<input type="number" id="oN" value="3000"></label>
+        </div>
+        <div class="kpis" id="oKpis" style="margin-top:12px"></div>
+        <h3>샘플 질의 12건</h3>
+        <div id="oRows"></div>
+      </div>
+      <div class="panel">
+        <h2>PII Shield</h2>
+        <p class="sub">언어모델로 보내기 전에 개인정보를 가립니다. 주민등록번호·휴대전화·이메일·계좌번호 형식을 규칙으로 찾습니다.</p>
+        <label class="f">원문<textarea id="pIn"></textarea></label>
+        <h3>모델로 전송되는 내용</h3>
+        <div class="out" id="pOut"></div>
+        <p class="hint" id="pCount"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-foundry" hidden>
+    <div class="panel">
+      <h2>Vertical Sovereign Foundry — 배포 관문</h2>
+      <p class="sub">산업 특화 모델은 다섯 관문을 차례로 통과해야 배포됩니다. 엔지니어 검수 없이는 배포 버튼이 켜지지 않습니다. (v1.1 3단계 범위, 화면 흐름만 구현)</p>
+      <div id="fGates"></div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="fDeploy" disabled>고객 환경에 배포</button><span class="hint" id="fMsg"></span></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+// ===== AXAP AX 콘솔 — pure logic (all demo data fictional; all unit prices are user assumptions) =====
+var DEMO_CO = { name: '세원정밀(가상)', industry: '금속 가공 부품 제조', staff: 45, systems: 'ERP(생산·구매 일부), 엑셀, 그룹웨어' };
+var DEMO_PROCS = [
+  { id: 'P1', name: '견적서 작성', dept: '영업', hours: 6, people: 2, rule: 4, data: 4, risk: 3, sensitive: false },
+  { id: 'P2', name: '주간 생산계획 수립', dept: '생산관리', hours: 8, people: 1, rule: 3, data: 3, risk: 4, sensitive: false },
+  { id: 'P3', name: '원자재 재고 확인·발주', dept: '구매', hours: 5, people: 1, rule: 4, data: 2, risk: 3, sensitive: false },
+  { id: 'P4', name: '품질검사 성적서 작성', dept: '품질', hours: 10, people: 2, rule: 5, data: 4, risk: 4, sensitive: false },
+  { id: 'P5', name: '설비 고장 이력 정리', dept: '설비', hours: 3, people: 1, rule: 3, data: 1, risk: 3, sensitive: false },
+  { id: 'P6', name: '거래처 문의 응대', dept: '영업', hours: 7, people: 2, rule: 3, data: 3, risk: 2, sensitive: false },
+  { id: 'P7', name: '급여·근태 정리', dept: '경영지원', hours: 4, people: 1, rule: 4, data: 4, risk: 3, sensitive: true }
+];
+
+// ---- AI Strategy Architect: diagnosis ----
+function diagnose(procs, autoRate) {
+  var maxLoad = Math.max.apply(null, procs.map(function (p) { return p.hours * p.people; }).concat([1]));
+  var rows = procs.map(function (p) {
+    var load = p.hours * p.people;                 // person-hours per week
+    var impact = load / maxLoad;                   // 0..1 relative
+    var feas = (p.rule + p.data) / 10;             // 0.2..1
+    var score = Math.round((impact * 0.5 + feas * 0.5) * 100);
+    var type;
+    if (p.data <= 2) type = 'data';                // data first
+    else if (feas >= 0.7 && impact >= 0.4) type = 'quick';
+    else type = 'next';
+    var saved = Math.round(load * autoRate * 10) / 10; // assumption-based
+    return { id: p.id, name: p.name, dept: p.dept, load: load, impact: Math.round(impact * 100) / 100, feas: Math.round(feas * 100) / 100, score: score, type: type, saved: saved, needsPII: !!p.sensitive, highRisk: p.risk >= 4 };
+  });
+  rows.sort(function (a, b) { return b.score - a.score; });
+  return rows;
+}
+var TYPE_L = { quick: '빠른 성과', next: '후속 과제', data: '데이터 정비 먼저' };
+function roadmap(rows) {
+  var q = rows.filter(function (r) { return r.type === 'quick'; });
+  return {
+    s1: q.slice(0, 2),
+    s2: rows.filter(function (r) { return r.type === 'next'; }).concat(q.slice(2)),
+    s0: rows.filter(function (r) { return r.type === 'data'; })
+  };
+}
+function totals(rows, ids) {
+  var sel = rows.filter(function (r) { return !ids || ids.indexOf(r.id) >= 0; });
+  return { load: sel.reduce(function (s, r) { return s + r.load; }, 0), saved: Math.round(sel.reduce(function (s, r) { return s + r.saved; }, 0) * 10) / 10 };
+}
+
+// ---- Orchestration: approval-based agent run ----
+function planRun(proc) {
+  var n = proc ? proc.name : '업무';
+  return [
+    { id: 1, phase: '인지', agent: '수집 에이전트', action: n + ' 관련 최근 4주 자료(가상 파일 3개)를 읽고 항목을 정리', risk: 'low' },
+    { id: 2, phase: '추론', agent: '설계 에이전트', action: n + ' 양식의 항목과 원본 데이터 열의 대응표 제안', risk: 'low' },
+    { id: 3, phase: '행동', agent: '작성 에이전트', action: '대응표로 ' + n + ' 초안 1건 생성(사내 저장소에만 저장)', risk: 'mid' },
+    { id: 4, phase: '행동', agent: '전달 에이전트', action: n + ' 결과를 외부(거래처 포털)로 전송', risk: 'high' }
+  ];
+}
+function stepState(steps, decisions) {
+  // decisions: {stepId: 'ok'|'no'}; sequential: a step is active only when all previous are ok
+  var out = [], blocked = false;
+  steps.forEach(function (s) {
+    var d = decisions[s.id];
+    var st = blocked ? 'locked' : d === 'ok' ? 'done' : d === 'no' ? 'rejected' : 'waiting';
+    if (st === 'waiting' || st === 'rejected') blocked = true;
+    out.push({ step: s, state: st });
+  });
+  return out;
+}
+
+// ---- IntOps Guardian: routing simulation ----
+var DEMO_QUERIES = [
+  '납기 일정 알려줘', '어제 불량 건수는?', '견적서 양식 찾아줘', '설비 3호기 점검 주기는?',
+  '지난 분기 불량 원인을 공정별로 분석하고 개선안을 비교해줘', '원자재 가격 변동이 다음 달 원가에 주는 영향을 계산해줘',
+  '휴가 신청 방법', '거래처 A 문의 메일 요약해줘', '생산계획 3안을 납기·설비 가동률 기준으로 비교해줘',
+  '품질검사 기준서에서 치수 공차 항목 찾아줘', '신규 거래처 계약서의 위험 조항을 검토하고 대응안을 제시해줘', '회의실 예약'
+];
+var HARD_WORDS = ['분석', '비교', '계산', '검토', '개선안', '대응안', '영향', '예측', '계획'];
+function difficulty(q) {
+  var s = Math.min(q.length / 40, 1) * 0.4;
+  var hits = HARD_WORDS.filter(function (w) { return q.indexOf(w) >= 0; }).length;
+  s += Math.min(hits, 3) * 0.2;
+  return Math.round(Math.min(s, 1) * 100) / 100;
+}
+function routeSim(queries, threshold, cLight, cHeavy, monthly) {
+  // cLight/cHeavy: user-assumed cost per query (원). monthly: queries per month (scaled from the sample mix)
+  var rows = queries.map(function (q) { var d = difficulty(q); return { q: q, d: d, model: d >= threshold ? 'heavy' : 'light', hard: d >= 0.6 }; });
+  var heavyShare = rows.filter(function (r) { return r.model === 'heavy'; }).length / rows.length;
+  var risky = rows.filter(function (r) { return r.hard && r.model === 'light'; }).length;
+  var base = monthly * cHeavy, routed = monthly * (heavyShare * cHeavy + (1 - heavyShare) * cLight);
+  return { rows: rows, heavyShare: heavyShare, risky: risky, base: Math.round(base), routed: Math.round(routed), savedPct: base ? Math.round((1 - routed / base) * 1000) / 10 : 0 };
+}
+
+// ---- PII Shield ----
+var PII_RULES = [
+  { k: '주민등록번호', re: /\b\d{6}-?[1-4]\d{6}\b/g, mask: '[주민등록번호]' },
+  { k: '휴대전화', re: /\b01[016789]-?\d{3,4}-?\d{4}\b/g, mask: '[전화번호]' },
+  { k: '이메일', re: /[\w.+-]+@[\w-]+\.[\w.]+/g, mask: '[이메일]' },
+  { k: '계좌번호', re: /\b\d{3,6}-\d{2,6}-\d{2,8}\b/g, mask: '[계좌번호]' }
+];
+function maskPII(text) {
+  var out = String(text), found = [];
+  PII_RULES.forEach(function (r) { out = out.replace(r.re, function () { found.push(r.k); return r.mask; }); });
+  var count = {}; found.forEach(function (k) { count[k] = (count[k] || 0) + 1; });
+  return { text: out, count: count, total: found.length };
+}
+var DEMO_PII = '급여 이체 확인 요청드립니다. 홍길동(가상) 주민번호 900101-1234567, 연락처 010-1234-5678, 이메일 hong@example.com, 급여 계좌 110-123-456789 입니다. 이번 달 연장근무 6시간 반영 부탁드립니다.';
+
+// ---- Voucher package (all inputs are assumptions to be checked against the official notice) ----
+function voucherCalc(o) {
+  var gov = o.amount * (1 - o.copay), copay = o.amount * o.copay;
+  var mix = { diag: o.amount * o.mDiag, build: o.amount * o.mBuild, ops: o.amount * (1 - o.mDiag - o.mBuild) };
+  var subYear = o.monthly * 12 * o.retain;
+  return { gov: Math.round(gov), copay: Math.round(copay), mix: { diag: Math.round(mix.diag), build: Math.round(mix.build), ops: Math.round(mix.ops) }, subYear: Math.round(subYear) };
+}
+function funnel(o) {
+  var proj = o.diagnoses * o.selectRate, retained = proj * o.retain;
+  return { projects: Math.round(proj * 10) / 10, retained: Math.round(retained * 10) / 10, annual: Math.round(retained * o.monthly * 12) };
+}
+
+// ---- Foundry pipeline gates ----
+var FOUNDRY = [
+  { id: 'F1', name: '데이터 준비', check: '고객 데이터 범위·품질 확인, 개인정보 처리 동의' },
+  { id: 'F2', name: '모델 튜닝', check: '산업 문서로 경량 모델 조정(자동 파이프라인)' },
+  { id: 'F3', name: '평가', check: '고객 평가셋으로 업무 정확도 측정' },
+  { id: 'F4', name: '엔지니어 검수', check: '평가 결과·실패 사례 검토 후 승인' },
+  { id: 'F5', name: '배포', check: '고객 환경(구축형) 설치, 운영은 IntOps로 이관' }
+];
+
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var won = function (n) { return Math.round(n).toLocaleString('ko-KR') + '원'; };
+  var eok = function (n) { return (n / 1e8).toFixed(2) + '억 원'; };
+  var S = { procs: JSON.parse(JSON.stringify(DEMO_PROCS)), rate: 0.3, rows: [], decisions: {}, log: [], gates: {} };
+  function toast(t) { var e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { e.classList.remove('on'); }, 1800); }
+  function kpi(l, v, s) { return '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + '</div></div>'; }
+  $('coName').textContent = DEMO_CO.name + ' · ' + DEMO_CO.industry + ' · ' + DEMO_CO.staff + '명';
+
+  // ---------- tabs ----------
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('nav.tabs button'));
+  function show(t) {
+    tabs.forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-t') === t)); });
+    ['diag', 'voucher', 'run', 'ops', 'foundry'].forEach(function (v) { $('v-' + v).hidden = v !== t; });
+    try { localStorage.setItem('ax-tab', t); } catch (e) { }
+  }
+  tabs.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-t')); }); });
+
+  // ---------- diagnosis ----------
+  function renderProcInputs() {
+    $('dRows').innerHTML = S.procs.map(function (p, i) {
+      var num = function (f, min, max) { return '<td class="num"><input type="number" min="' + min + '" max="' + max + '" data-i="' + i + '" data-f="' + f + '" value="' + p[f] + '" aria-label="' + esc(p.name) + ' ' + f + '"></td>'; };
+      return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.dept) + '</td>' + num('hours', 0, 80) + num('people', 1, 50) + num('rule', 1, 5) + num('data', 1, 5) +
+        '<td><input type="checkbox" data-i="' + i + '" data-f="sensitive"' + (p.sensitive ? ' checked' : '') + ' aria-label="' + esc(p.name) + ' 개인정보"></td></tr>';
+    }).join('');
+  }
+  $('dRows').addEventListener('input', function (e) {
+    var i = e.target.getAttribute('data-i'), f = e.target.getAttribute('data-f'); if (i == null) return;
+    var p = S.procs[+i];
+    if (f === 'sensitive') p.sensitive = e.target.checked;
+    else { var v = +e.target.value; if (f === 'rule' || f === 'data') v = Math.min(5, Math.max(1, v || 1)); p[f] = Math.max(0, v || 0); }
+    renderDiag();
+  });
+  $('dRate').addEventListener('input', function () { S.rate = +this.value; renderDiag(); });
+  function renderDiag() {
+    $('dRateV').textContent = Math.round(S.rate * 100) + '%';
+    S.rows = diagnose(S.procs, S.rate);
+    var rm = roadmap(S.rows), all = totals(S.rows), s1 = totals(S.rows, rm.s1.map(function (r) { return r.id; }));
+    $('dKpis').innerHTML = kpi('진단 업무', S.rows.length + '개', DEMO_CO.name) + kpi('업무 부하', all.load + '시간/주', '설문 합계') +
+      kpi('1단계 절감 추정', s1.saved + '시간/주', '자동화 비율 ' + Math.round(S.rate * 100) + '% 가정') + kpi('데이터 정비 필요', rm.s0.length + '개', '데이터 준비도 2 이하');
+    $('dResult').innerHTML = S.rows.map(function (r, i) {
+      var tags = pillT(r.type) + (r.needsPII ? ' <span class="pill p-crit">PII Shield</span>' : '') + (r.highRisk ? ' <span class="pill p-ask">사람 검토</span>' : '');
+      return '<tr><td class="mono">' + (i + 1) + '</td><td>' + esc(r.name) + '</td><td class="num"><div class="row" style="flex-wrap:nowrap;justify-content:flex-end"><div class="bar" style="width:60px"><i style="width:' + r.score + '%"></i></div><span class="mono">' + r.score + '</span></div></td><td>' + tags + '</td><td class="num">' + r.saved + '</td></tr>';
+    }).join('');
+    var stg = function (t, list, note) { return '<div class="stage"><h4>' + t + '</h4><div class="items">' + (list.length ? list.map(function (r) { return pillT(r.type, r.name); }).join('') : '<span class="hint">해당 없음</span>') + '</div><div class="hint">' + note + '</div></div>'; };
+    $('dRoad').innerHTML = stg('1단계 · 바우처 과제 후보', rm.s1, '점수 상위 「빠른 성과」 업무 최대 2개') + stg('2단계 · 후속 과제', rm.s2, '운영 대행과 함께 확대') + stg('선행 · 데이터 정비', rm.s0, '데이터를 모은 뒤 다시 진단');
+    renderRunOptions();
+  }
+  function pillT(t, label) { return '<span class="pill p-' + t + '">' + esc(label || TYPE_L[t]) + '</span>'; }
+
+  // AI draft (sample capability)
+  var sample = null, ctl = null;
+  $('dAi').disabled = true;
+  if (window.claude && window.claude.use) {
+    window.claude.use('sample').then(function (fn) { sample = fn; if (sample) $('dAi').disabled = false; else $('dAiNote').textContent = '이 화면에서는 AI 초안을 쓸 수 없습니다(공유 링크 등). 나머지 기능은 그대로 쓸 수 있습니다.'; });
+  } else { $('dAiNote').textContent = '이 화면에서는 AI 초안을 쓸 수 없습니다. 나머지 기능은 그대로 쓸 수 있습니다.'; }
+  var ERR = { not_granted: 'Claude 사용이 허용되지 않아 AI 초안을 쓸 수 없습니다.', sampling_disabled: '이 계정에서는 AI 초안을 쓸 수 없습니다.', rate_limited: '요청이 많습니다. 잠시 후 다시 눌러 주세요.', refused: '이 조건으로는 초안을 만들지 못했습니다.', session_expired: '다시 로그인한 뒤 시도하세요.' };
+  $('dAi').addEventListener('click', async function () {
+    if (!sample) return;
+    var rm = roadmap(S.rows);
+    if (!rm.s1.length) { $('dAiOut').textContent = '1단계 과제 후보가 없습니다. 설문 값을 확인하세요.'; return; }
+    var lines = S.rows.map(function (r) { return '- ' + r.name + ' (' + r.dept + '): 주 ' + r.load + '시간, 점수 ' + r.score + ', 분류 ' + TYPE_L[r.type] + ', 절감 추정 주 ' + r.saved + '시간' + (r.needsPII ? ', 개인정보 포함' : ''); }).join('\n');
+    var prompt = '당신은 중소기업의 AI 도입을 돕는 컨설턴트입니다. 아래 AX 진단 결과로 정부 「AI 바우처」 수요기업 과제계획서의 핵심 부분 초안을 한국어로 작성하세요.\n\n' +
+      '[기업] ' + DEMO_CO.name + ' / ' + DEMO_CO.industry + ' / 임직원 ' + DEMO_CO.staff + '명 / 사용 시스템: ' + DEMO_CO.systems + '\n' +
+      '[진단 결과]\n' + lines + '\n[1단계 과제 후보] ' + rm.s1.map(function (r) { return r.name; }).join(', ') + '\n[자동화 비율 가정] ' + Math.round(S.rate * 100) + '%\n\n' +
+      '[작성 규칙]\n- 소제목 4개: 1. 도입 목표 2. 적용 범위(1단계 후보 업무) 3. 기대 효과와 측정 지표 4. 추진 일정(7개월)과 개인정보·보안 조치\n' +
+      '- 기대 효과 수치는 위 진단의 「절감 추정」만 쓰고, 그것이 가정 기반 추정임을 밝힐 것\n- 지원 금액, 공급기업명, 실적, 인증처럼 주어지지 않은 사실은 지어내지 말고 [확인 필요: 무엇]으로 남길 것\n' +
+      '- 바우처 공고의 세부 양식은 확인되지 않았으므로 마지막 줄에 「공고 양식 확인 후 보완 필요」라고 적을 것\n- 전체 35줄 이내, 공문 문체(~합니다)';
+    ctl = new AbortController();
+    $('dAi').disabled = true; $('dStop').hidden = false; $('dAiOut').textContent = '작성 중…'; $('dAiNote').textContent = '';
+    try {
+      var res = await sample(prompt, { signal: ctl.signal, cache: false, onText: function (u) { $('dAiOut').textContent = u.text; } });
+      $('dAiOut').textContent = res.text + '\n\n— AI 생성 초안 · 컨설턴트 검토와 고객 확인 필요';
+    } catch (e) {
+      if (e && e.code === 'cancelled') $('dAiOut').textContent = (e.text || '') + (e.text ? '\n\n(중지됨)' : '중지했습니다.');
+      else { $('dAiOut').textContent = (e && e.text) || ''; $('dAiNote').textContent = ERR[e && e.code] || 'AI 초안을 받지 못했습니다. 다시 눌러 주세요.'; if (e && (e.code === 'not_granted' || e.code === 'sampling_disabled')) sample = null; }
+    } finally { $('dStop').hidden = true; $('dAi').disabled = !sample; }
+  });
+  $('dStop').addEventListener('click', function () { if (ctl) ctl.abort(); });
+
+  // ---------- voucher ----------
+  function renderVoucher() {
+    var o = { amount: +$('vAmt').value || 0, copay: +$('vCopay').value || 0, mDiag: +$('vDiag').value || 0, mBuild: +$('vBuild').value || 0, monthly: +$('vPlan').value, retain: +$('vRetain').value || 0 };
+    var bad = o.mDiag + o.mBuild > 1 || o.copay < 0 || o.copay > 0.9 || o.retain < 0 || o.retain > 1;
+    $('vErr').textContent = bad ? '진단·구축 비중의 합은 1 이하, 민간 부담 비율은 0~0.9, 유지율은 0~1 사이로 입력하세요.' : '';
+    if (bad) return;
+    var r = voucherCalc(o);
+    $('vOne').innerHTML = [['정부 지원(가정)', won(r.gov)], ['고객 민간 부담(가정)', won(r.copay)], ['AXAP 매출 · 진단', won(r.mix.diag)], ['AXAP 매출 · 구축', won(r.mix.build)], ['AXAP 매출 · 바우처 기간 운영', won(r.mix.ops)], ['종료 후 연 구독 기대값', won(r.subYear) + ' (월 요금 × 12 × 유지율)']]
+      .map(function (x) { return '<tr><th style="white-space:normal">' + x[0] + '</th><td class="num">' + x[1] + '</td></tr>'; }).join('');
+    var f = funnel({ diagnoses: +$('fDiag').value || 0, selectRate: +$('fSel').value || 0, retain: o.retain, monthly: o.monthly });
+    var proj = Math.round(f.projects * (o.amount)), y1 = 981765456;
+    $('fKpis').innerHTML = kpi('바우처 과제', f.projects + '건', '진단 × 선정률') + kpi('과제 총액', eok(proj), '정부 지원 + 고객 부담, 과제 금액 × 과제 수') + kpi('종료 후 유지 고객', f.retained + '개사', '과제 × 유지율') + kpi('유지 고객 연 구독', eok(f.annual), '1년 차 인건비 ' + eok(y1) + ' 대비');
+    $('fNote').textContent = '1년 차 인건비는 사업계획서 v1.1(6.2)의 KOSA 단가 기준 값입니다. 과제 수·유지율은 검증 전 가정이며, 「바우처 종료 후 유료 유지율」이 Go/No-Go 지표입니다.';
+  }
+  ['vAmt', 'vCopay', 'vDiag', 'vBuild', 'vPlan', 'vRetain', 'fDiag', 'fSel'].forEach(function (id) { $(id).addEventListener('input', renderVoucher); });
+
+  // ---------- agent run ----------
+  function renderRunOptions() {
+    var keep = $('rProc').value;
+    $('rProc').innerHTML = S.rows.map(function (r) { return '<option value="' + r.id + '">' + esc(r.name) + ' (' + TYPE_L[r.type] + ')</option>'; }).join('');
+    if (keep && S.rows.some(function (r) { return r.id === keep; })) $('rProc').value = keep;
+  }
+  var RISK = { low: ['p-mute', '낮음'], mid: ['p-ask', '중간'], high: ['p-crit', '높음 · 별도 확인'] };
+  function curSteps() { var r = S.rows.find(function (x) { return x.id === $('rProc').value; }); return planRun(r); }
+  function renderRun() {
+    var st = stepState(curSteps(), S.decisions);
+    $('rSteps').innerHTML = st.map(function (x) {
+      var s = x.step, r = RISK[s.risk];
+      var act = x.state === 'waiting' ? '<button class="btn" data-ok="' + s.id + '">' + (s.risk === 'high' ? '확인 후 승인' : '승인') + '</button><button class="btn warn" data-no="' + s.id + '">거절</button>' :
+        x.state === 'done' ? '<span class="pill p-quick">승인됨</span>' : x.state === 'rejected' ? '<span class="pill p-crit">거절 · 중단</span>' : '<span class="hint">이전 단계 대기</span>';
+      return '<div class="step ' + x.state + '"><span class="n">' + s.id + '</span><div><div><b>' + s.phase + '</b> · ' + esc(s.agent) + ' <span class="pill ' + r[0] + '">위험 ' + r[1] + '</span></div><div class="a">' + esc(s.action) + '</div></div><div class="act">' + act + '</div></div>';
+    }).join('');
+    $('rLog').innerHTML = S.log.length ? S.log.map(function (l) { return '<tr><td class="mono">' + l.at + '</td><td>' + esc(l.step) + '</td><td>' + (l.d === 'ok' ? '<span class="pill p-quick">승인</span>' : '<span class="pill p-crit">거절</span>') + '</td><td>' + esc(l.who) + '</td></tr>'; }).join('') : '<tr><td colspan="4" class="hint">아직 기록이 없습니다. 왼쪽에서 1단계를 승인해 보세요.</td></tr>';
+  }
+  $('rSteps').addEventListener('click', function (e) {
+    var ok = e.target.getAttribute('data-ok'), no = e.target.getAttribute('data-no'); var id = ok || no; if (!id) return;
+    var who = $('rWho').value.trim(); if (!who) { toast('승인자 이름을 입력하세요'); return; }
+    var s = curSteps().find(function (x) { return String(x.id) === id; });
+    if (ok && s.risk === 'high' && e.target.getAttribute('data-confirm') !== '1') { e.target.textContent = '외부 전송 승인 확정'; e.target.setAttribute('data-confirm', '1'); return; }
+    S.decisions[id] = ok ? 'ok' : 'no';
+    S.log.unshift({ at: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), step: s.id + '. ' + s.phase + ' — ' + s.agent, d: S.decisions[id], who: who });
+    renderRun(); toast(ok ? '승인을 기록했습니다' : '거절을 기록하고 실행을 멈췄습니다');
+  });
+  $('rProc').addEventListener('change', function () { S.decisions = {}; renderRun(); });
+  $('rReset').addEventListener('click', function () { S.decisions = {}; renderRun(); toast('실행을 처음 단계로 되돌렸습니다'); });
+
+  // ---------- ops ----------
+  function renderOps() {
+    var th = +$('oTh').value; $('oThV').textContent = th.toFixed(2);
+    var r = routeSim(DEMO_QUERIES, th, +$('oL').value || 0, +$('oH').value || 0, +$('oN').value || 0);
+    $('oKpis').innerHTML = kpi('전부 고성능일 때', won(r.base), '월 비용(가정)') + kpi('라우팅 적용', won(r.routed), '고성능 비중 ' + Math.round(r.heavyShare * 100) + '%') + kpi('절감률', r.savedPct + '%', '단가 가정에 따라 달라짐') + kpi('품질 위험', r.risky + '건', '어려운 질의가 경량 모델로 간 수');
+    $('oRows').innerHTML = r.rows.map(function (x) { return '<div class="qrow"><span>' + esc(x.q) + '</span><span class="mono">' + x.d.toFixed(2) + '</span>' + (x.model === 'heavy' ? '<span class="pill p-next">고성능</span>' : x.hard ? '<span class="pill p-crit">경량!</span>' : '<span class="pill p-mute">경량</span>') + '</div>'; }).join('');
+  }
+  ['oTh', 'oL', 'oH', 'oN'].forEach(function (id) { $(id).addEventListener('input', renderOps); });
+  $('pIn').value = DEMO_PII;
+  function renderPII() {
+    var m = maskPII($('pIn').value);
+    $('pOut').textContent = m.text;
+    $('pCount').textContent = m.total ? '가린 항목 ' + m.total + '개: ' + Object.keys(m.count).map(function (k) { return k + ' ' + m.count[k]; }).join(', ') : '가린 항목이 없습니다.';
+  }
+  $('pIn').addEventListener('input', renderPII);
+
+  // ---------- foundry ----------
+  function renderFoundry() {
+    var allPrev = true;
+    $('fGates').innerHTML = FOUNDRY.map(function (g) {
+      var on = !!S.gates[g.id], enabled = allPrev && g.id !== 'F5'; allPrev = allPrev && on;
+      return '<div class="gate"><input type="checkbox" id="g' + g.id + '" data-g="' + g.id + '"' + (on ? ' checked' : '') + (enabled ? '' : ' disabled') + '><label for="g' + g.id + '"><b>' + g.name + '</b><div class="hint">' + esc(g.check) + '</div></label>' + (on ? '<span class="pill p-quick">통과</span>' : '<span class="pill p-mute">대기</span>') + '</div>';
+    }).join('');
+    var ready = ['F1', 'F2', 'F3', 'F4'].every(function (k) { return S.gates[k]; });
+    $('fDeploy').disabled = !ready || !!S.gates.F5;
+    $('fMsg').textContent = S.gates.F5 ? '배포 완료(가상). 운영은 IntOps Guardian으로 이관됩니다.' : ready ? '모든 관문을 통과했습니다.' : '앞 관문을 순서대로 통과해야 합니다.';
+  }
+  $('fGates').addEventListener('change', function (e) {
+    var g = e.target.getAttribute('data-g'); if (!g) return;
+    S.gates[g] = e.target.checked;
+    if (!e.target.checked) { var hit = false; FOUNDRY.forEach(function (x) { if (x.id === g) hit = true; else if (hit) S.gates[x.id] = false; }); }
+    renderFoundry();
+  });
+  $('fDeploy').addEventListener('click', function () { S.gates.F5 = true; renderFoundry(); toast('배포를 기록했습니다(가상)'); });
+
+  // ---------- boot ----------
+  renderProcInputs(); renderDiag(); renderVoucher(); renderRun(); renderOps(); renderPII(); renderFoundry();
+  var start = 'diag'; try { var t = localStorage.getItem('ax-tab'); if (t && $('v-' + t)) start = t; } catch (e) { }
+  show(start);
+})();
+</script>
+
+<footer style="display:block;max-width:1180px;margin:32px auto 0;padding:14px 0 24px;border-top:1px solid currentColor;font-size:12px;line-height:1.7;opacity:.72;font-family:inherit">본 화면은 AI Biz Lab 포트폴리오용 프로토타입이며 실제 서비스가 아닙니다. 기업·데이터·금액은 모두 가상 데이터와 가정값이고, 판정·계산 결과는 법률·재무·입찰 자문을 대신하지 않습니다. AI 초안 작성 기능은 이 공개 데모에서 제공하지 않습니다.<br><a href="../" style="color:inherit;display:inline;margin:0;padding:0">← 데모 목록</a> · <a href="https://aibizlabofficial.com" style="color:inherit;display:inline;margin:0;padding:0">aibizlabofficial.com</a> · © 2026 AI Biz Lab</footer>
+</body>
+</html>

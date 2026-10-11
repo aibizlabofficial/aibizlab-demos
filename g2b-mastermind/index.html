@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>G2B MasterMind 수주 통제실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a bid control room — one active bid in the header, five agent desks as tabs, each desk = inputs left, evidence right */
+:root {
+  --bg: #F2F4F7; --surface: #FFFFFF; --sunk: #E8ECF1; --line: #CBD3DD;
+  --ink: #161F2C; --ink-2: #47546A; --ink-3: #6E7A8C;
+  --accent: #1D4E89; --accent-ink: #FFFFFF; --accent-soft: #DCE6F4;
+  --ok: #1E7A4C; --ok-soft: #DCF0E4; --info: #2F6FA8; --info-soft: #DCEAF7;
+  --warn: #996000; --warn-soft: #FBEACB; --bad: #B3261E; --bad-soft: #F8DDDA;
+  --ai: #6B3FA0; --ai-soft: #EDE4F7;
+  --font-ui: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151D; --surface: #18202B; --sunk: #212A36; --line: #334052;
+  --ink: #E5EAF1; --ink-2: #B2BDCB; --ink-3: #8592A4;
+  --accent: #7FB0EA; --accent-ink: #0E1622; --accent-soft: #22354E;
+  --ok: #6FCB98; --ok-soft: #173426; --info: #86B8E8; --info-soft: #1B3149; --warn: #E9B45A; --warn-soft: #3A2C12; --bad: #F08A80; --bad-soft: #43201D;
+  --ai: #C3A2EA; --ai-soft: #2E2340; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10151D; --surface: #18202B; --sunk: #212A36; --line: #334052;
+  --ink: #E5EAF1; --ink-2: #B2BDCB; --ink-3: #8592A4;
+  --accent: #7FB0EA; --accent-ink: #0E1622; --accent-soft: #22354E;
+  --ok: #6FCB98; --ok-soft: #173426; --info: #86B8E8; --info-soft: #1B3149; --warn: #E9B45A; --warn-soft: #3A2C12; --bad: #F08A80; --bad-soft: #43201D;
+  --ai: #C3A2EA; --ai-soft: #2E2340; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14.5px; line-height: 1.6 }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 22px 18px 44px; display: grid; gap: 16px }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--ink); padding-bottom: 12px }
+.eyebrow { font-size: 12px; letter-spacing: .08em; color: var(--ink-3); font-weight: 600 }
+h1 { margin: 0; font-size: 26px; line-height: 1.2; text-wrap: balance }
+h1 span { font-weight: 500; color: var(--ink-2); font-size: 17px; margin-left: 6px }
+.active { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2) }
+select, input[type=number], input[type=text] { font: 14px var(--font-ui); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; max-width: 100% }
+.note { background: var(--warn-soft); border: 1px solid var(--line); border-radius: 8px; padding: 9px 13px; font-size: 13px }
+nav.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px }
+nav.tabs button { flex: 0 0 auto; font: 600 14px var(--font-ui); padding: 9px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; display: flex; gap: 8px; align-items: center }
+nav.tabs button small { font-family: var(--font-mono); font-weight: 500; color: var(--ink-3); font-size: 11.5px }
+nav.tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+nav.tabs button[aria-selected="true"] small { color: var(--bg); opacity: .75 }
+button, .btn { font: 600 13.5px var(--font-ui); border-radius: 8px; padding: 7px 13px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer }
+button:hover { border-color: var(--accent) }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
+button.ai { background: var(--ai); color: var(--bg); border-color: var(--ai) }
+button:disabled { opacity: .5; cursor: not-allowed }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+section.view { display: grid; gap: 14px }
+.grid2 { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr) } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0 }
+.panel h2 { margin: 0; font-size: 15.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.panel h2 .tag { font-size: 11.5px; font-weight: 600; color: var(--ink-3); letter-spacing: .04em }
+.hint { margin: 0; font-size: 12.5px; color: var(--ink-3) }
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2) }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13.5px }
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px }
+@media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) } .kpis .kpi:first-child { grid-column: 1 / -1 } }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; display: grid }
+.kpi .n { font-family: var(--font-mono); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15 }
+.kpi .l { font-size: 12.5px; color: var(--ink-2) }
+.kpi.ok .n { color: var(--ok) } .kpi.warn .n { color: var(--warn) } .kpi.bad .n { color: var(--bad) } .kpi.info .n { color: var(--info) }
+.board { display: grid; grid-template-columns: repeat(5, minmax(180px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 4px }
+.col { background: var(--sunk); border-radius: 10px; padding: 10px; display: grid; gap: 8px; align-content: start; min-height: 120px }
+.col h3 { margin: 0; font-size: 13px; color: var(--ink-2); display: flex; justify-content: space-between }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; display: grid; gap: 4px; cursor: pointer; text-align: left; font: inherit; color: inherit }
+.card.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent) }
+.card .t { font-weight: 600; font-size: 13.5px; line-height: 1.4 }
+.card .m { font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.chip { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap }
+.chip.ok { background: var(--ok-soft); color: var(--ok) } .chip.cond { background: var(--warn-soft); color: var(--warn) } .chip.no { background: var(--bad-soft); color: var(--bad) }
+.chip.info { background: var(--info-soft); color: var(--info) } .chip.ai { background: var(--ai-soft); color: var(--ai) } .chip.mute { background: var(--sunk); color: var(--ink-3) }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums }
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface) }
+table { border-collapse: collapse; width: 100%; font-size: 13px }
+th, td { text-align: left; padding: 8px 11px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { background: var(--sunk); font-size: 12px; color: var(--ink-2); font-weight: 600 }
+tr:last-child td { border-bottom: 0 }
+tr.sel td { background: var(--accent-soft) }
+td.num, th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+td input[type=number] { width: 72px; padding: 3px 6px; text-align: right; font-family: var(--font-mono) }
+.why { font-size: 12px; color: var(--ink-2) }
+.why b { color: var(--bad); font-weight: 600 }
+svg text { fill: var(--ink-2); font-family: var(--font-mono); font-size: 11px }
+svg .bar { fill: var(--accent) }
+svg .axis { stroke: var(--line) }
+svg .curve { stroke: var(--accent); fill: none; stroke-width: 2 }
+svg .mark { stroke: var(--bad); stroke-width: 1.5; stroke-dasharray: 4 3 }
+svg .dot { fill: var(--bad) }
+.big { font-family: var(--font-mono); font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums }
+.gap-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 44px; gap: 8px; align-items: center; font-size: 13px }
+.gap-bar { height: 8px; background: var(--sunk); border-radius: 4px; overflow: hidden }
+.gap-bar i { display: block; height: 100%; background: var(--warn) }
+textarea { width: 100%; min-height: 150px; resize: vertical; background: var(--sunk); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px; font: 12.5px/1.55 var(--font-ui) }
+pre.out { white-space: pre-wrap; background: var(--sunk); border-radius: 8px; padding: 10px 12px; margin: 0; font: 13px/1.6 var(--font-ui); min-height: 60px }
+.aibox { border: 1px solid var(--ai); border-radius: 10px; padding: 12px; display: grid; gap: 8px; background: var(--ai-soft) }
+.aibox pre.out { background: var(--surface) }
+ul.docs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px }
+ul.docs label { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px }
+.progress { height: 8px; background: var(--sunk); border-radius: 4px; overflow: hidden } .progress i { display: block; height: 100%; background: var(--ok) }
+.status { font-size: 13px; color: var(--ink-2) }
+footer { font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 4px }
+@media (prefers-reduced-motion: no-preference) { .gap-bar i, .progress i { transition: width .3s ease } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">공공입찰 All-in-One 전략 지휘 플랫폼 · 프로토타입 v0.2</div>
+      <h1>G2B MasterMind <span>수주 통제실</span></h1>
+    </div>
+    <label class="active" for="activeBid">작업 중인 공고 <select id="activeBid"></select></label>
+  </header>
+  <div class="note">공고·기업·평가표는 모두 <b>데모용 가상 데이터</b>입니다. 기관명은 실제 기관이 아니며, 예비가격 범위·낙찰하한율·배점은 시연용 예시값입니다. 실제 공고의 값을 넣으면 그 값으로 다시 계산합니다.</div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+
+  <!-- DASHBOARD -->
+  <section class="view" id="v-dash" role="tabpanel">
+    <div class="kpis" id="kpis"></div>
+    <div class="board" id="board"></div>
+    <p class="hint">카드를 누르면 그 공고가 작업 중인 공고가 되고, 해당 단계의 에이전트 화면으로 이동합니다.</p>
+  </section>
+
+  <!-- SCOUT -->
+  <section class="view" id="v-scout" role="tabpanel" hidden>
+    <div class="grid2">
+      <div class="panel">
+        <h2>기업 프로파일 <span class="tag">SCOUT 입력</span></h2>
+        <div class="field">보유 업종(면허)<div class="checks" id="licBox"></div></div>
+        <label class="field" for="pRegion">본사 소재지 <select id="pRegion"><option>서울</option><option>경기</option><option>부산</option><option>대전</option><option>광주</option></select></label>
+        <label class="row" for="pSme"><input type="checkbox" id="pSme"> 중소기업</label>
+        <label class="field" for="pRecord">단일 유사 실적 최대 금액 (억 원) <input type="number" id="pRecord" min="0" step="0.5"></label>
+        <label class="field" for="pStaff">투입 가능 인력 (명) <input type="number" id="pStaff" min="0" step="1"></label>
+        <p class="hint">프로파일을 바꾸면 오른쪽 판정이 바로 다시 계산됩니다.</p>
+      </div>
+      <div class="panel">
+        <h2>참가 가능성 판정 <span class="tag">공고 8건</span></h2>
+        <div class="tablebox"><table><thead><tr><th>공고</th><th>계약</th><th class="num">추정가격</th><th>판정</th><th>사유</th><th></th></tr></thead><tbody id="scoutRows"></tbody></table></div>
+        <p class="hint">업종·지역·중소기업 제한을 못 맞추면 「불가」, 실적·인력이 부족하면 공동수급 검토가 필요한 「조건부」입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STRATEGIST -->
+  <section class="view" id="v-strat" role="tabpanel" hidden>
+    <div class="row"><b id="sTitle"></b><span class="chip info" id="sMethod"></span>
+      <span class="row" style="margin-left:auto"><button id="mQual">적격심사 모드</button><button id="mNego">협상계약 모드</button></span></div>
+    <div class="grid2" id="qualPane">
+      <div class="panel">
+        <h2>투찰 조건 <span class="tag">적격심사</span></h2>
+        <label class="field" for="qBase">기초금액 (원) <input type="number" id="qBase" step="1000000"></label>
+        <label class="field" for="qRange">복수예비가격 범위 (± %) <input type="number" id="qRange" min="0.5" max="5" step="0.5" value="3"></label>
+        <label class="field" for="qFloor">낙찰하한율 (%) — 예시값, 공고 확인 <input type="number" id="qFloor" min="70" max="99" step="0.001" value="88"></label>
+        <label class="field" for="qBid">투찰 사정율 (기초금액 대비 %) <span class="row"><input type="range" id="qBid" min="85" max="92" step="0.05" value="88" style="flex:1"><span class="mono" id="qBidV"></span></span></label>
+        <p class="hint">시뮬레이션 가정: 15개 예비가격이 범위 안에서 고르게 만들어지고, 그중 4개가 무작위로 추첨되어 그 평균이 예정가격이 됩니다(2만 회 반복). 실제 낙찰은 경쟁사 투찰과 적격심사 점수에 좌우됩니다.</p>
+      </div>
+      <div class="panel">
+        <h2>예정가격 분포와 유효 투찰 확률</h2>
+        <div class="row" style="gap:20px"><div><div class="hint">투찰금액</div><div class="big" id="qAmt"></div></div><div><div class="hint">하한 이상일 확률</div><div class="big" id="qProb"></div></div></div>
+        <div class="tablebox" style="padding:8px"><svg id="qHist" viewBox="0 0 560 190" width="100%" role="img" aria-label="예정가격 사정율 분포"></svg></div>
+        <div class="tablebox" style="padding:8px"><svg id="qCurve" viewBox="0 0 560 190" width="100%" role="img" aria-label="투찰 사정율별 하한 이상 확률"></svg></div>
+        <p class="hint">위: 예정가격÷기초금액 분포. 아래: 투찰 사정율에 따라 투찰금액이 「낙찰하한율 × 예정가격」 이상이 될 확률. 점선은 현재 투찰 사정율입니다. 이 계산은 자사 입력값만 쓰며 다른 고객사의 투찰 정보는 쓰지 않습니다.</p>
+      </div>
+    </div>
+    <div class="grid2" id="negoPane" hidden>
+      <div class="panel">
+        <h2>평가 구조 <span class="tag">협상계약</span></h2>
+        <div class="row"><label class="field" for="nTech">기술 배점 <input type="number" id="nTech" value="70" min="0" max="100"></label><label class="field" for="nPrice">가격 배점 <input type="number" id="nPrice" value="30" min="0" max="100"></label></div>
+        <p class="hint">기술:가격 70:30은 일반 협상계약의 예시값입니다. 공고의 제안서 평가 기준표 값으로 바꾸세요.</p>
+        <div class="row" style="gap:20px"><div><div class="hint">기술평가 예상 득점</div><div class="big" id="nScore"></div></div><div><div class="hint">기술 배점 환산</div><div class="big" id="nConv"></div></div></div>
+      </div>
+      <div class="panel">
+        <h2>평가 항목별 예상 득점 <span class="tag">가상 평가표</span></h2>
+        <div class="tablebox"><table><thead><tr><th>평가 항목</th><th class="num">배점</th><th class="num">자사 예상</th></tr></thead><tbody id="negoRows"></tbody></table></div>
+        <h2>보강 우선순위</h2>
+        <div id="gapList" style="display:grid;gap:7px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CREATOR -->
+  <section class="view" id="v-creator" role="tabpanel" hidden>
+    <div class="grid2">
+      <div class="panel">
+        <h2>RFP · 제안서 초안 <span class="tag">CREATOR 입력</span></h2>
+        <label class="field" for="cRfp">RFP 본문 (요구사항 고유번호 포함)<textarea id="cRfp" spellcheck="false"></textarea></label>
+        <label class="field" for="cProp">제안서 초안<textarea id="cProp" spellcheck="false"></textarea></label>
+        <button class="primary" id="cRun">추적표·누락 점검 실행</button>
+      </div>
+      <div class="panel">
+        <h2>요구사항 추적표와 누락 점검</h2>
+        <div class="row" id="cSum"></div>
+        <div class="tablebox"><table><thead><tr><th>고유번호</th><th>요구사항</th><th>RFP</th><th>제안서 반영</th><th>근거</th></tr></thead><tbody id="cRows"></tbody></table></div>
+        <h2>제안서 목차 초안 <span class="tag">분류별 자동 구성</span></h2>
+        <pre class="out" id="cToc"></pre>
+        <div class="row"><button id="cCopy">목차 복사</button><span class="status" id="cCopyMsg"></span></div>
+        <div class="aibox">
+          <h2>AI 대응 문단 초안 <span class="chip ai">생성형 AI</span></h2>
+          <div class="row"><label class="field" for="cReq" style="flex:1;min-width:200px">대상 요구사항 <select id="cReq"></select></label><button class="ai" id="cAi">초안 작성</button><button id="cStop" hidden>중지</button></div>
+          <pre class="out" id="cAiOut">요구사항을 고르고 「초안 작성」을 누르면 Claude가 이 요구사항에 대한 제안서 대응 문단 초안을 씁니다. 실적·수치처럼 확인이 필요한 내용은 [확인 필요]로 남깁니다.</pre>
+          <p class="hint" id="cAiNote">이 기능은 생성형 AI를 사용합니다. 결과는 초안이며, 제출 전 사람이 검토해야 합니다. 처음 사용할 때 Claude 사용 허용을 묻습니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHIELD -->
+  <section class="view" id="v-shield" role="tabpanel" hidden>
+    <div class="grid2">
+      <div class="panel">
+        <h2>적격심사 자가 채점 <span class="tag">가상 평가표</span></h2>
+        <div class="tablebox"><table><thead><tr><th>심사 항목</th><th class="num">배점</th><th class="num">예상 점수</th></tr></thead><tbody id="qualRows"></tbody></table></div>
+        <label class="field" for="qPass">적격 통과 기준 점수 (예시값) <input type="number" id="qPass" value="85" step="0.5"></label>
+        <div class="row" style="gap:20px"><div><div class="hint">예상 총점</div><div class="big" id="qTotal"></div></div><div><div class="hint">판정</div><div id="qVerdict"></div></div></div>
+        <p class="hint">배점과 통과 기준은 공고에 첨부된 적격심사 세부기준의 값으로 바꿔 쓰세요.</p>
+      </div>
+      <div class="panel">
+        <h2>제출서류 체크리스트 <span class="tag">공고문에서 추출</span></h2>
+        <label class="field" for="sNotice">입찰 공고문<textarea id="sNotice" spellcheck="false" style="min-height:120px"></textarea></label>
+        <div class="row"><button class="primary" id="sRun">서류·일정 추출</button><span class="status" id="sCount"></span></div>
+        <div class="progress"><i id="sBar" style="width:0%"></i></div>
+        <ul class="docs" id="sDocs"></ul>
+        <h2>주요 일정</h2>
+        <div id="sDates" style="display:grid;gap:6px"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>규칙 기반 판정(Scout·Strategist·Shield·Creator 추적표)은 화면에 보이는 입력값만으로 계산하며, 파일과 입력은 이 브라우저 밖으로 나가지 않습니다. Creator의 AI 초안만 사용자가 버튼을 누를 때 Claude에 요구사항 내용을 보냅니다.</span>
+    <span>발행 AI Biz Lab · 작성 AI비즈플래너 · AI Biz Lab 서비스 프로세스 ⑤ 비즈니스 모델 기획·프로토타입 제작</span>
+  </footer>
+</div>
+<script>
+// ===== G2B MasterMind 수주 통제실 — agent logic (pure functions) =====
+var DEMO_PROFILE = {
+  name: '가온정보기술(가상)', licenses: ['소프트웨어사업자', '정보통신공사업'], region: '서울', sme: true,
+  maxRecord: 1500000000, staff: 12
+};
+var DEMO_BIDS = [
+  { id: 'G-01', title: '가온시 통합 홈페이지 고도화', org: '가온시(가상)', method: '협상', est: 820000000, base: 820000000, lic: ['소프트웨어사업자'], region: null, smeOnly: true, record: 500000000, staff: 6, due: '2026-10-27T10:00', stage: 'creator' },
+  { id: 'G-02', title: '한빛구 민원 상담 챗봇 구축', org: '한빛구(가상)', method: '협상', est: 450000000, base: 450000000, lic: ['소프트웨어사업자'], region: '서울', smeOnly: true, record: 300000000, staff: 5, due: '2026-10-30T14:00', stage: 'strategist' },
+  { id: 'G-03', title: '가온시 전산장비 유지관리', org: '가온시(가상)', method: '적격심사', est: 310000000, base: 310000000, lic: ['정보통신공사업'], region: '서울', smeOnly: true, record: 200000000, staff: 3, due: '2026-10-21T10:00', stage: 'shield' },
+  { id: 'G-04', title: '가온문화재단 학습관리시스템(LMS) 구축', org: '가온문화재단(가상)', method: '협상', est: 1200000000, base: 1200000000, lic: ['소프트웨어사업자'], region: null, smeOnly: false, record: 2000000000, staff: 10, due: '2026-11-06T10:00', stage: 'scout' },
+  { id: 'G-05', title: '가온교육청 교실 네트워크 구축', org: '가온교육청(가상)', method: '적격심사', est: 640000000, base: 640000000, lic: ['정보통신공사업', '전기공사업'], region: null, smeOnly: true, record: 300000000, staff: 4, due: '2026-11-03T10:00', stage: 'scout' },
+  { id: 'G-06', title: '가온시 공공데이터 분석 플랫폼', org: '가온시(가상)', method: '협상', est: 980000000, base: 980000000, lic: ['소프트웨어사업자'], region: null, smeOnly: true, record: 800000000, staff: 15, due: '2026-11-10T10:00', stage: 'scout' },
+  { id: 'G-07', title: '한빛구 홈페이지 유지보수', org: '한빛구(가상)', method: '적격심사', est: 160000000, base: 160000000, lic: ['소프트웨어사업자'], region: '서울', smeOnly: true, record: 100000000, staff: 2, due: '2026-10-24T10:00', stage: 'strategist' },
+  { id: 'G-08', title: '바다시 관광 앱 고도화', org: '바다시(가상)', method: '협상', est: 350000000, base: 350000000, lic: ['소프트웨어사업자'], region: '부산', smeOnly: true, record: 200000000, staff: 4, due: '2026-11-02T10:00', stage: 'scout' }
+];
+var STAGES = [
+  { k: 'scout', l: '탐색·자격 판정' }, { k: 'strategist', l: '전략 수립' }, { k: 'creator', l: '제안서 작성' }, { k: 'shield', l: '서류·심사 점검' }, { k: 'done', l: '제출 완료' }
+];
+
+// ---- Scout: eligibility ----
+function scoutJudge(p, b) {
+  var checks = [];
+  var licOk = b.lic.every(function (l) { return p.licenses.indexOf(l) >= 0; });
+  checks.push({ k: '업종(면허)', ok: licOk, hard: true, msg: licOk ? '보유: ' + b.lic.join(', ') : '미보유: ' + b.lic.filter(function (l) { return p.licenses.indexOf(l) < 0; }).join(', ') });
+  var regOk = !b.region || b.region === p.region;
+  checks.push({ k: '지역 제한', ok: regOk, hard: true, msg: b.region ? (regOk ? b.region + ' 소재 충족' : b.region + ' 소재 기업만 참가') : '제한 없음' });
+  var smeOk = !b.smeOnly || p.sme;
+  checks.push({ k: '중소기업 제한', ok: smeOk, hard: true, msg: b.smeOnly ? (smeOk ? '중소기업 충족' : '중소기업만 참가') : '제한 없음' });
+  var recOk = p.maxRecord >= b.record;
+  checks.push({ k: '유사 실적', ok: recOk, hard: false, msg: '요건 ' + eok(b.record) + ' / 보유 ' + eok(p.maxRecord) });
+  var stOk = p.staff >= b.staff;
+  checks.push({ k: '투입 인력', ok: stOk, hard: false, msg: '요건 ' + b.staff + '명 / 가용 ' + p.staff + '명' });
+  var hardFail = checks.some(function (c) { return c.hard && !c.ok; });
+  var softFail = checks.some(function (c) { return !c.hard && !c.ok; });
+  return { verdict: hardFail ? 'no' : softFail ? 'cond' : 'ok', checks: checks };
+}
+function eok(n) { return (n / 1e8).toFixed(n % 1e7 === 0 ? 1 : 2).replace(/\.0$/, '') + '억 원'; }
+
+// ---- Strategist (적격심사): multiple-reserve-price simulation ----
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function simulateReserve(rangePct, runs, seed) {
+  var rnd = mulberry32(seed || 7), out = new Float64Array(runs), r = rangePct / 100;
+  for (var i = 0; i < runs; i++) {
+    var prices = []; for (var j = 0; j < 15; j++) prices.push(1 - r + rnd() * 2 * r);
+    var idx = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+    for (var s = 0; s < 4; s++) { var t = s + Math.floor(rnd() * (15 - s)); var tmp = idx[s]; idx[s] = idx[t]; idx[t] = tmp; }
+    out[i] = (prices[idx[0]] + prices[idx[1]] + prices[idx[2]] + prices[idx[3]]) / 4;
+  }
+  return out; // ratios of 예정가격/기초금액
+}
+// probability that bid ratio b (투찰가/기초금액) >= floor × 예정가격 ratio
+function validProb(sim, bidRatio, floorPct) {
+  var f = floorPct / 100, n = 0; for (var i = 0; i < sim.length; i++) if (bidRatio >= f * sim[i]) n++;
+  return n / sim.length;
+}
+function histogram(sim, lo, hi, bins) {
+  var h = new Array(bins).fill(0), w = (hi - lo) / bins;
+  for (var i = 0; i < sim.length; i++) { var k = Math.floor((sim[i] - lo) / w); if (k >= 0 && k < bins) h[k]++; }
+  return h;
+}
+
+// ---- Strategist (협상): gap analysis ----
+function gapAnalysis(items) {
+  var rows = items.map(function (it) { var gap = Math.max(0, it.max - it.mine); return { name: it.name, max: it.max, mine: it.mine, gap: gap }; });
+  var total = rows.reduce(function (a, r) { return a + r.max; }, 0), mine = rows.reduce(function (a, r) { return a + r.mine; }, 0);
+  return { rows: rows.slice().sort(function (a, b) { return b.gap - a.gap; }), total: total, mine: mine };
+}
+var DEMO_EVAL = [
+  { name: '사업 이해도 및 추진 전략', max: 10, mine: 8 },
+  { name: '기능 요구사항 대응 방안', max: 20, mine: 15 },
+  { name: '보안·품질 관리 방안', max: 10, mine: 6 },
+  { name: '투입 인력 전문성', max: 10, mine: 7 },
+  { name: '유사 사업 수행 실적', max: 10, mine: 9 },
+  { name: '사업 관리·일정 계획', max: 5, mine: 4 },
+  { name: '하자보수·기술 지원', max: 5, mine: 3 }
+];
+
+// ---- Shield ----
+var DEMO_QUAL = [
+  { name: '수행능력(유사 실적)', max: 30, mine: 27 },
+  { name: '경영상태(신용평가)', max: 20, mine: 16 },
+  { name: '신인도(가감점)', max: 0, mine: 1 },
+  { name: '입찰가격', max: 50, mine: 46 }
+];
+var DEMO_NOTICE = [
+  '가온시 통합 홈페이지 고도화 사업 제안 공고 — 데모용 가상 문서',
+  '1. 사업 개요: 가온시 통합 홈페이지 고도화',
+  '2. 계약 방법: 협상에 의한 계약',
+  '3. 참가 자격: 소프트웨어사업자 신고를 마친 중소기업',
+  '4. 제출 서류',
+  '가. 입찰참가신청서 1부',
+  '나. 법인 등기사항증명서 1부',
+  '다. 사업자등록증 사본 1부',
+  '라. 소프트웨어사업자 신고확인서 1부',
+  '마. 최근 결산 재무제표 1부',
+  '바. 유사 사업 수행실적증명서',
+  '사. 청렴계약 이행서약서',
+  '아. 제안서 10부 및 전자파일(PDF) 1식',
+  '5. 제안서 제출 마감: 2026.10.27 10:00',
+  '6. 제안 설명회: 2026.10.30 14:00'
+].join('\n');
+function extractDocs(text) {
+  var lines = text.split(/\n/).map(function (l) { return l.trim(); }).filter(Boolean), out = [], on = false;
+  lines.forEach(function (l) {
+    if (/제출\s*서류|구비\s*서류/.test(l) && !/마감/.test(l)) { on = true; return; }
+    if (on && /^\d+\s*[.)]/.test(l)) { on = false; }
+    if (on) { var m = l.replace(/^([가-하]\.|[-·•]|\(\d+\)|\d+\))\s*/, ''); if (m) out.push(m); }
+  });
+  return out;
+}
+function extractDates(text) {
+  var re = /(20\d{2})[.\-/]\s?(\d{1,2})[.\-/]\s?(\d{1,2})\.?\s*(\d{1,2}):(\d{2})?/g, m, out = [];
+  text.split(/\n/).forEach(function (line) {
+    re.lastIndex = 0;
+    while ((m = re.exec(line))) {
+      var label = line.slice(0, m.index).replace(/^\d+\.\s*/, '').replace(/[:：\s]+$/, '').trim() || '일정';
+      out.push({ label: label, date: new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) });
+    }
+  });
+  return out;
+}
+function dday(date, now) {
+  var a = new Date(now.getFullYear(), now.getMonth(), now.getDate()), b = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((b - a) / 86400000);
+}
+
+// ===== G2B MasterMind prototype logic (F1·F2), rule-based =====
+var CATS = {
+  ECR: '시스템 장비 구성', SFR: '기능', PER: '성능', SIR: '인터페이스', IFR: '인터페이스',
+  DAR: '데이터', TER: '테스트', SER: '보안', QUR: '품질', COR: '제약사항',
+  PMR: '프로젝트 관리', PMP: '프로젝트 관리', PSR: '프로젝트 지원'
+};
+var ID_RE = /([A-Z]{3})\s?[-‐–]\s?(\d{2,4})/g;
+
+function normId(p, n) { return p + '-' + String(parseInt(n, 10)).padStart(3, '0'); }
+
+// lines: [{loc, text}]
+function findIds(text) {
+  var out = [], m; ID_RE.lastIndex = 0;
+  while ((m = ID_RE.exec(text))) out.push({ prefix: m[1], id: normId(m[1], m[2]), index: m.index, len: m[0].length });
+  return out;
+}
+
+var LABEL_RE = /^(요구사항\s*)?(고유번호|명칭|분류|정의|세부\s*내용|상세\s*설명|산출\s*정보|관련\s*요구사항)\s*[:：]?\s*/;
+
+function extractRequirements(lines) {
+  var occ = []; var unknown = {};
+  lines.forEach(function (ln, li) {
+    var ids = findIds(ln.text);
+    ids.forEach(function (o, x) {
+      var nx = ids[x + 1];
+      if (CATS[o.prefix]) occ.push({ id: o.id, prefix: o.prefix, li: li, multi: ids.length > 1, after: ln.text.slice(o.index + o.len, nx ? nx.index : undefined) });
+      else unknown[o.prefix] = (unknown[o.prefix] || 0) + 1;
+    });
+  });
+  // block for each occurrence: until next known-ID line (max 30 lines)
+  var byId = {};
+  occ.forEach(function (o, k) {
+    var end = Math.min(lines.length, o.li + 30);
+    for (var j = k + 1; j < occ.length; j++) { if (occ[j].li > o.li) { end = Math.min(end, occ[j].li); break; } }
+    var body = o.multi ? [o.after] : [o.after].concat(lines.slice(o.li + 1, end).map(function (l) { return l.text; }));
+    var size = body.join(' ').replace(/\s+/g, '').length;
+    var cur = byId[o.id];
+    if (!cur || size > cur.size) byId[o.id] = { o: o, body: body, size: size, count: (cur ? cur.count : 0) + 1 };
+    else cur.count++;
+  });
+  var reqs = Object.keys(byId).map(function (id) {
+    var b = byId[id];
+    var parts = b.body.map(function (t) { return t.replace(LABEL_RE, '').trim(); }).filter(Boolean);
+    // name: first part that is not a category word / pure label
+    var name = '', def = '';
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i].replace(/^[|·\-\s]+/, '');
+      if (!p || /^(기능|성능|보안|데이터|테스트|품질|제약사항|인터페이스|프로젝트\s*(관리|지원)|시스템 장비 구성)(\s*요구사항)?$/.test(p)) continue;
+      if (!name) { name = p.slice(0, 60); continue; }
+      if (!def) { def = p.slice(0, 160); break; }
+    }
+    var defLine = b.body.find(function (t) { return /^\s*정의\s*[:：]?/.test(t); });
+    if (defLine) def = defLine.replace(LABEL_RE, '').trim().slice(0, 160);
+    return {
+      id: id, prefix: b.o.prefix, cat: CATS[b.o.prefix], name: name || '(명칭 추출 실패)', def: def,
+      loc: lines[b.o.li].loc, mentions: b.count, text: parts.join(' ')
+    };
+  });
+  reqs.sort(function (a, b) {
+    var order = Object.keys(CATS);
+    return order.indexOf(a.prefix) - order.indexOf(b.prefix) || a.id.localeCompare(b.id);
+  });
+  // numbering gaps per prefix
+  var gaps = [];
+  var groups = {};
+  reqs.forEach(function (r) { (groups[r.prefix] = groups[r.prefix] || []).push(parseInt(r.id.split('-')[1], 10)); });
+  Object.keys(groups).forEach(function (p) {
+    var nums = groups[p].sort(function (a, b) { return a - b; });
+    for (var n = nums[0]; n < nums[nums.length - 1]; n++) if (nums.indexOf(n) < 0) gaps.push(normId(p, n));
+  });
+  return { reqs: reqs, gaps: gaps, unknown: unknown };
+}
+
+var STOP = ('시스템 기능 제공 구축 지원 관리 요구사항 필요 수행 대한 위한 통한 경우 기반 가능 방안 제시 해야 하여야 한다 있어야 '
+  + '및 등 기타 모든 각종 사용 사용자 이용 적용 구현 처리 화면 정보 내용 정의 세부내용 세부 상세 설명 대상 범위 '
+  + '이상 이내 이하 포함 확인 해당 별도 사항 기존 신규 개선 고도화 통합 수준 준수 전체 일체 사업 제안 제안사 발주기관').split(' ');
+var JOSA = /(으로써|으로|에서|에게|까지|부터|이며|이고|하고|하는|하여|되는|된|의|을|를|은|는|이|가|와|과|에|로|도|만)$/;
+
+function keywords(r) {
+  var src = (r.name + ' ' + r.name + ' ' + r.def).replace(/[^가-힣A-Za-z0-9\s]/g, ' ');
+  var seen = {}, out = [];
+  src.split(/\s+/).forEach(function (w) {
+    if (!w) return;
+    var t = w.replace(JOSA, '');
+    if (t.length < 2 || STOP.indexOf(t) >= 0 || /^\d+$/.test(t) || seen[t]) return;
+    seen[t] = 1; out.push(t);
+  });
+  return out.slice(0, 6);
+}
+
+function matchProposal(reqs, plines) {
+  var idIndex = {};
+  plines.forEach(function (ln) {
+    findIds(ln.text).forEach(function (o) { (idIndex[o.id] = idIndex[o.id] || []).push(ln.loc); });
+  });
+  return reqs.map(function (r) {
+    var kw = keywords(r);
+    if (idIndex[r.id]) {
+      return { req: r, status: 'id', locs: uniq(idIndex[r.id]), kw: kw, hit: [], score: 1 };
+    }
+    var best = { score: 0, loc: null, hit: [] };
+    for (var i = 0; i < plines.length; i++) {
+      var win = [plines[i - 1], plines[i], plines[i + 1]].filter(Boolean).map(function (l) { return l.text; }).join(' ');
+      var hit = kw.filter(function (k) { return win.indexOf(k) >= 0; });
+      var score = kw.length ? hit.length / kw.length : 0;
+      if (score > best.score) best = { score: score, loc: plines[i].loc, hit: hit };
+    }
+    var status = best.score >= 0.6 ? 'kw' : best.score >= 0.3 ? 'partial' : 'missing';
+    return { req: r, status: status, locs: best.loc && status !== 'missing' ? [best.loc] : [], kw: kw, hit: best.hit, score: best.score };
+  });
+}
+function uniq(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
+
+function textToLines(text, label) {
+  return text.split(/\r?\n/).map(function (t, i) { return { loc: (label || '줄') + ' ' + (i + 1), text: t.trim() }; })
+    .filter(function (l) { return l.text; });
+}
+
+var DEMO_RFP = [
+'가온시 시민문화재단(가상 기관) 통합 홈페이지 고도화 사업 제안요청서 — 데모용 가상 문서',
+'Ⅰ. 사업 개요',
+'사업명: 시민문화재단 통합 홈페이지 고도화 / 사업기간: 계약일로부터 6개월',
+'Ⅱ. 요구사항 총괄표',
+'기능(SFR) 6건: SFR-001 통합 회원 관리, SFR-002 프로그램 예약, SFR-003 전자결제 연동, SFR-004 게시판 관리, SFR-005 통합 검색, SFR-006 관리자 통계',
+'비기능 10건: PER-001, SIR-001, DAR-001, TER-001, SER-001, SER-002, QUR-001, COR-001, PMR-001, PSR-001',
+'Ⅲ. 상세 요구사항',
+'요구사항 고유번호: SFR-001',
+'요구사항 명칭: 통합 회원 관리',
+'요구사항 분류: 기능',
+'정의: 홈페이지 회원 가입, 로그인, 탈퇴를 하나의 계정 체계로 통합 관리',
+'세부내용: 휴대폰 본인인증, 간편로그인(카카오·네이버) 연동, 1년 미접속 휴면계정 전환',
+'요구사항 고유번호: SFR-002',
+'요구사항 명칭: 프로그램 예약',
+'요구사항 분류: 기능',
+'정의: 강좌·공연 프로그램의 온라인 예약과 취소, 정원 초과 시 대기자 자동 배정',
+'세부내용: 예약 확정 시 문자 알림, 마감 24시간 전 취소 제한',
+'요구사항 고유번호: SFR-003',
+'요구사항 명칭: 전자결제 연동',
+'요구사항 분류: 기능',
+'정의: 유료 프로그램 결제를 위한 전자결제(PG) 연동 및 부분 환불 처리',
+'요구사항 고유번호: SFR-004',
+'요구사항 명칭: 게시판 관리',
+'요구사항 분류: 기능',
+'정의: 공지사항, 자주 묻는 질문, 시민 제안 게시판 운영과 첨부파일 관리',
+'요구사항 고유번호: SFR-005',
+'요구사항 명칭: 통합 검색',
+'요구사항 분류: 기능',
+'정의: 프로그램, 게시물, 시설 안내를 한 번에 찾는 통합 검색과 검색어 자동완성',
+'요구사항 고유번호: SFR-006',
+'요구사항 명칭: 관리자 통계',
+'요구사항 분류: 기능',
+'정의: 관리자가 예약 현황, 결제 실적, 방문자 통계를 대시보드로 조회',
+'요구사항 고유번호: PER-001',
+'요구사항 명칭: 응답 시간',
+'요구사항 분류: 성능',
+'정의: 동시 접속자 500명 환경에서 주요 화면 응답 시간 3초 이내',
+'요구사항 고유번호: SIR-001',
+'요구사항 명칭: 회계시스템 연계',
+'요구사항 분류: 인터페이스',
+'정의: 결제 내역을 재단 회계시스템으로 매일 1회 자동 전송',
+'요구사항 고유번호: DAR-001',
+'요구사항 명칭: 기존 데이터 이관',
+'요구사항 분류: 데이터',
+'정의: 기존 홈페이지 회원·게시물 데이터를 이관하고 정합성을 검증',
+'요구사항 고유번호: TER-001',
+'요구사항 명칭: 통합 테스트',
+'요구사항 분류: 테스트',
+'정의: 개통 전 단위·통합·성능 테스트 계획 수립과 결과 보고',
+'요구사항 고유번호: SER-001',
+'요구사항 명칭: 개인정보 암호화',
+'요구사항 분류: 보안',
+'정의: 주민등록번호·연락처 등 개인정보의 저장 및 전송 구간 암호화',
+'요구사항 고유번호: SER-002',
+'요구사항 명칭: 웹 취약점 점검',
+'요구사항 분류: 보안',
+'정의: 개통 전 웹 취약점 점검을 수행하고 발견 사항을 조치',
+'요구사항 고유번호: QUR-001',
+'요구사항 명칭: 웹 접근성',
+'요구사항 분류: 품질',
+'정의: 한국형 웹 콘텐츠 접근성 지침을 준수해 장애인·고령자의 이용을 보장',
+'요구사항 고유번호: COR-001',
+'요구사항 명칭: 표준프레임워크 적용',
+'요구사항 분류: 제약사항',
+'정의: 전자정부 표준프레임워크를 기반으로 개발',
+'요구사항 고유번호: PMR-001',
+'요구사항 명칭: 사업 관리',
+'요구사항 분류: 프로젝트 관리',
+'정의: 주간·월간 보고, 일정·위험 관리 방안 제시',
+'요구사항 고유번호: PSR-001',
+'요구사항 명칭: 운영자 교육',
+'요구사항 분류: 프로젝트 지원',
+'정의: 재단 운영자 대상 관리자 기능 교육과 매뉴얼 제공'
+].join('\n');
+
+var DEMO_PROPOSAL = [
+'통합 홈페이지 고도화 사업 제안서 (데모용 가상 초안)',
+'Ⅰ. 제안 개요',
+'당사는 공공 문화기관 홈페이지 구축 경험을 바탕으로 시민 중심의 통합 홈페이지를 제안합니다.',
+'Ⅱ. 기능 요구사항 대응',
+'1. 통합 회원 관리(SFR-001): 휴대폰 본인인증과 카카오·네이버 간편로그인을 적용하고, 1년 미접속 계정은 휴면 전환합니다.',
+'2. 프로그램 예약(SFR-002): 강좌·공연 온라인 예약과 취소, 정원 초과 시 대기자 자동 배정 기능을 구현합니다.',
+'3. 결제(SFR-003): 전자결제(PG) 모듈을 연동하고 부분 환불을 지원합니다.',
+'4. 게시판: 공지사항, 자주 묻는 질문, 시민 제안 게시판을 운영하며 첨부파일 용량을 관리합니다.',
+'5. 검색 기능: 프로그램 정보를 빠르게 찾을 수 있도록 검색창을 상단에 배치합니다.',
+'6. 관리자 통계(SFR-006): 예약 현황과 결제 실적, 방문자 통계를 대시보드로 제공합니다.',
+'Ⅲ. 비기능 요구사항 대응',
+'성능(PER-001): 동시 접속자 500명 기준 부하 테스트로 주요 화면 3초 이내 응답을 확보합니다.',
+'데이터 이관(DAR-001): 기존 회원·게시물 데이터를 이관하고 건수 대사로 정합성을 검증합니다.',
+'보안(SER-001): 개인정보는 저장 시 암호화하고 전송 구간은 TLS로 보호합니다.',
+'웹 접근성: 한국형 웹 콘텐츠 접근성 지침을 준수하여 장애인·고령자도 불편 없이 이용하도록 설계합니다.',
+'개발 기반(COR-001): 전자정부 표준프레임워크 최신 버전을 적용합니다.',
+'Ⅳ. 사업 관리 및 지원',
+'사업 관리(PMR-001): 주간·월간 보고와 일정·위험 관리 체계를 운영합니다.',
+'운영 지원: 개통 후 재단 운영자를 대상으로 관리자 기능 교육을 실시하고 매뉴얼을 제공합니다.'
+].join('\n');
+
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var won = function (n) { return Math.round(n).toLocaleString('ko-KR') + '원'; };
+  var VERDICT = { ok: ['참가 가능', 'ok'], cond: ['조건부', 'cond'], no: ['불가', 'no'] };
+  var TABS = [
+    { k: 'dash', l: '수주 통제실', s: 'OVERVIEW' }, { k: 'scout', l: 'Scout', s: '기회 포착' }, { k: 'strat', l: 'Strategist', s: '전략 수립' },
+    { k: 'creator', l: 'Creator', s: '제안서' }, { k: 'shield', l: 'Shield', s: '서류·심사' }
+  ];
+  var STAGE_TAB = { scout: 'scout', strategist: 'strat', creator: 'creator', shield: 'shield', done: 'dash' };
+  var S = {
+    tab: 'dash',
+    profile: JSON.parse(JSON.stringify(DEMO_PROFILE)),
+    bids: JSON.parse(JSON.stringify(DEMO_BIDS)),
+    active: 'G-01', mode: null,
+    evalItems: JSON.parse(JSON.stringify(DEMO_EVAL)),
+    qual: JSON.parse(JSON.stringify(DEMO_QUAL)),
+    sim: null, simKey: '', checked: {}
+  };
+  var NOW = new Date();
+  function bid() { return S.bids.find(function (b) { return b.id === S.active; }); }
+  function judge(b) { return scoutJudge(S.profile, b); }
+  function due(b) { return new Date(b.due); }
+
+  // ---------- tabs ----------
+  $('tabs').innerHTML = TABS.map(function (t) { return '<button role="tab" data-t="' + t.k + '" aria-selected="false">' + t.l + ' <small>' + t.s + '</small></button>'; }).join('');
+  function go(t) {
+    S.tab = t;
+    Array.prototype.forEach.call($('tabs').children, function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-t') === t)); });
+    TABS.forEach(function (x) { $('v-' + x.k).hidden = x.k !== t; });
+    render();
+    try { localStorage.setItem('g2bmm.tab', t); } catch (e) {}
+  }
+  $('tabs').addEventListener('click', function (e) { var b = e.target.closest('button[data-t]'); if (b) go(b.getAttribute('data-t')); });
+
+  // ---------- active bid ----------
+  function fillActive() {
+    $('activeBid').innerHTML = S.bids.map(function (b) { return '<option value="' + b.id + '"' + (b.id === S.active ? ' selected' : '') + '>' + b.id + ' · ' + esc(b.title) + '</option>'; }).join('');
+  }
+  $('activeBid').addEventListener('change', function () { S.active = this.value; S.mode = null; render(); });
+
+  // ---------- dashboard ----------
+  function renderDash() {
+    var js = S.bids.map(function (b) { return judge(b).verdict; });
+    var cnt = function (v) { return js.filter(function (x) { return x === v; }).length; };
+    var next = S.bids.filter(function (b) { return b.stage !== 'done' && judge(b).verdict !== 'no'; })
+      .map(function (b) { return { b: b, d: dday(due(b), NOW) }; }).sort(function (a, c) { return a.d - c.d; })[0];
+    $('kpis').innerHTML = [
+      { n: S.bids.length, l: '추적 중인 공고', c: '' }, { n: cnt('ok'), l: '참가 가능', c: 'ok' }, { n: cnt('cond'), l: '조건부(공동수급 검토)', c: 'warn' },
+      { n: cnt('no'), l: '참가 불가', c: 'bad' }, { n: next ? 'D-' + next.d : '—', l: next ? '가장 가까운 마감 · ' + next.b.id : '진행 중인 마감 없음', c: 'info' }
+    ].map(function (k) { return '<div class="kpi ' + k.c + '"><span class="n">' + k.n + '</span><span class="l">' + esc(k.l) + '</span></div>'; }).join('');
+    $('board').innerHTML = STAGES.map(function (st) {
+      var items = S.bids.filter(function (b) { return b.stage === st.k; });
+      return '<div class="col"><h3><span>' + st.l + '</span><span class="mono">' + items.length + '</span></h3>' + items.map(function (b) {
+        var v = VERDICT[judge(b).verdict], d = dday(due(b), NOW);
+        return '<button class="card' + (b.id === S.active ? ' sel' : '') + '" data-b="' + b.id + '"><span class="t">' + esc(b.title) + '</span>' +
+          '<span class="m"><span class="chip ' + v[1] + '">' + v[0] + '</span><span class="chip mute">' + b.method + '</span><span class="mono">' + (d >= 0 ? 'D-' + d : '마감') + '</span></span></button>';
+      }).join('') + '</div>';
+    }).join('');
+  }
+  $('board').addEventListener('click', function (e) {
+    var c = e.target.closest('.card'); if (!c) return;
+    S.active = c.getAttribute('data-b'); S.mode = null; fillActive();
+    go(STAGE_TAB[bid().stage] || 'dash');
+  });
+
+  // ---------- scout ----------
+  var ALL_LIC = ['소프트웨어사업자', '정보통신공사업', '전기공사업'];
+  $('licBox').innerHTML = ALL_LIC.map(function (l, i) { return '<label for="lic' + i + '"><input type="checkbox" id="lic' + i + '" data-l="' + l + '"> ' + l + '</label>'; }).join('');
+  function loadProfile() {
+    var p = S.profile;
+    Array.prototype.forEach.call($('licBox').querySelectorAll('input'), function (x) { x.checked = p.licenses.indexOf(x.getAttribute('data-l')) >= 0; });
+    $('pRegion').value = p.region; $('pSme').checked = p.sme; $('pRecord').value = p.maxRecord / 1e8; $('pStaff').value = p.staff;
+  }
+  function readProfile() {
+    var p = S.profile;
+    p.licenses = Array.prototype.filter.call($('licBox').querySelectorAll('input'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-l'); });
+    p.region = $('pRegion').value; p.sme = $('pSme').checked;
+    p.maxRecord = Math.max(0, parseFloat($('pRecord').value) || 0) * 1e8; p.staff = Math.max(0, parseInt($('pStaff').value, 10) || 0);
+    render();
+  }
+  ['licBox', 'pRegion', 'pSme', 'pRecord', 'pStaff'].forEach(function (id) { $(id).addEventListener('input', readProfile); $(id).addEventListener('change', readProfile); });
+  function renderScout() {
+    $('scoutRows').innerHTML = S.bids.map(function (b) {
+      var r = judge(b), v = VERDICT[r.verdict];
+      var why = r.checks.filter(function (c) { return !c.ok; }).map(function (c) { return '<b>' + esc(c.k) + '</b> ' + esc(c.msg); }).join('<br>') || '모든 요건 충족';
+      var act = r.verdict === 'no' ? '' : (b.stage === 'scout' ? '<button data-send="' + b.id + '">전략 단계로</button>' : '<span class="chip mute">' + STAGES.find(function (s) { return s.k === b.stage; }).l + '</span>');
+      return '<tr class="' + (b.id === S.active ? 'sel' : '') + '"><td><b>' + esc(b.title) + '</b><div class="why">' + esc(b.org) + ' · 마감 ' + b.due.replace('T', ' ') + '</div></td><td>' + b.method + '</td><td class="num">' + (b.est / 1e8).toFixed(1) + '억</td><td><span class="chip ' + v[1] + '">' + v[0] + '</span></td><td class="why">' + why + '</td><td>' + act + '</td></tr>';
+    }).join('');
+  }
+  $('scoutRows').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-send]'); if (!b) return;
+    var x = S.bids.find(function (y) { return y.id === b.getAttribute('data-send'); }); x.stage = 'strategist'; S.active = x.id; fillActive(); render();
+  });
+
+  // ---------- strategist ----------
+  function stratMode() { return S.mode || (bid().method === '적격심사' ? 'qual' : 'nego'); }
+  $('mQual').addEventListener('click', function () { S.mode = 'qual'; render(); });
+  $('mNego').addEventListener('click', function () { S.mode = 'nego'; render(); });
+  ['qBase', 'qRange', 'qFloor', 'qBid'].forEach(function (id) { $(id).addEventListener('input', function () { if (id === 'qBase') bid().base = Math.max(0, +this.value || 0); renderStrat(); }); });
+  ['nTech', 'nPrice'].forEach(function (id) { $(id).addEventListener('input', renderStrat); });
+  $('negoRows').addEventListener('input', function (e) {
+    var i = e.target.getAttribute('data-i'), f = e.target.getAttribute('data-f'); if (i == null) return;
+    S.evalItems[+i][f] = Math.max(0, +e.target.value || 0); renderGap();
+  });
+  function svgHist(sim, lo, hi) {
+    var bins = 40, h = histogram(sim, lo, hi, bins), max = Math.max.apply(null, h), W = 560, H = 190, L = 40, R = 28, T = 12, B = 30, bw = (W - L - R) / bins;
+    var s = '<line class="axis" x1="' + L + '" y1="' + (H - B) + '" x2="' + (W - R) + '" y2="' + (H - B) + '"/>';
+    h.forEach(function (v, i) { var bh = (H - T - B) * v / max; s += '<rect class="bar" x="' + (L + i * bw + 1) + '" y="' + (H - B - bh) + '" width="' + (bw - 2) + '" height="' + bh + '" rx="1"/>'; });
+    [lo, (lo + hi) / 2, hi].forEach(function (t) { var x = L + (t - lo) / (hi - lo) * (W - L - R); s += '<text x="' + x + '" y="' + (H - 10) + '" text-anchor="middle">' + (t * 100).toFixed(1) + '%</text>'; });
+    s += '<text x="' + L + '" y="' + (T + 2) + '" dominant-baseline="hanging">빈도</text>';
+    return s;
+  }
+  function svgCurve(sim, floor, bidPct) {
+    var W = 560, H = 190, L = 40, R = 12, T = 12, B = 30, lo = 85, hi = 92, pts = [];
+    for (var b = lo; b <= hi + 1e-9; b += 0.1) pts.push([b, validProb(sim, b / 100, floor)]);
+    var X = function (b) { return L + (b - lo) / (hi - lo) * (W - L - R); }, Y = function (p) { return H - B - p * (H - T - B); };
+    var s = '<line class="axis" x1="' + L + '" y1="' + (H - B) + '" x2="' + (W - R) + '" y2="' + (H - B) + '"/><line class="axis" x1="' + L + '" y1="' + T + '" x2="' + L + '" y2="' + (H - B) + '"/>';
+    s += '<path class="curve" d="' + pts.map(function (p, i) { return (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1); }).join(' ') + '"/>';
+    [85, 86, 87, 88, 89, 90, 91, 92].forEach(function (t) { s += '<text x="' + X(t) + '" y="' + (H - 10) + '" text-anchor="middle">' + t + '%</text>'; });
+    [0, 0.5, 1].forEach(function (p) { s += '<text x="' + (L - 6) + '" y="' + Y(p) + '" text-anchor="end" dominant-baseline="middle">' + (p * 100) + '%</text>'; });
+    var pb = validProb(sim, bidPct / 100, floor);
+    s += '<line class="mark" x1="' + X(bidPct) + '" y1="' + T + '" x2="' + X(bidPct) + '" y2="' + (H - B) + '"/><circle class="dot" cx="' + X(bidPct) + '" cy="' + Y(pb) + '" r="4"/>';
+    return s;
+  }
+  function renderStrat() {
+    var b = bid(), m = stratMode();
+    $('sTitle').textContent = b.id + ' · ' + b.title; $('sMethod').textContent = '공고 계약방식: ' + b.method;
+    $('mQual').className = m === 'qual' ? 'primary' : ''; $('mNego').className = m === 'nego' ? 'primary' : '';
+    $('qualPane').hidden = m !== 'qual'; $('negoPane').hidden = m !== 'nego';
+    if (m === 'qual') {
+      if (document.activeElement !== $('qBase')) $('qBase').value = b.base;
+      var range = Math.min(5, Math.max(0.5, +$('qRange').value || 3)), floor = +$('qFloor').value || 88, bp = +$('qBid').value;
+      var key = range.toFixed(2); if (S.simKey !== key) { S.sim = simulateReserve(range, 20000, 7); S.simKey = key; }
+      $('qBidV').textContent = bp.toFixed(2) + '%';
+      $('qAmt').textContent = won(b.base * bp / 100);
+      $('qProb').textContent = (validProb(S.sim, bp / 100, floor) * 100).toFixed(1) + '%';
+      $('qHist').innerHTML = svgHist(S.sim, 1 - range / 100, 1 + range / 100);
+      $('qCurve').innerHTML = svgCurve(S.sim, floor, bp);
+    } else {
+      $('negoRows').innerHTML = S.evalItems.map(function (it, i) {
+        return '<tr><td>' + esc(it.name) + '</td><td class="num"><input type="number" data-i="' + i + '" data-f="max" value="' + it.max + '" aria-label="' + esc(it.name) + ' 배점"></td><td class="num"><input type="number" data-i="' + i + '" data-f="mine" value="' + it.mine + '" aria-label="' + esc(it.name) + ' 자사 예상"></td></tr>';
+      }).join('');
+      renderGap();
+    }
+  }
+  function renderGap() {
+    var g = gapAnalysis(S.evalItems), tech = +$('nTech').value || 0;
+    $('nScore').textContent = g.mine + ' / ' + g.total;
+    $('nConv').textContent = (g.total ? g.mine / g.total * tech : 0).toFixed(1) + ' / ' + tech;
+    var maxGap = Math.max.apply(null, g.rows.map(function (r) { return r.gap; }).concat([1]));
+    $('gapList').innerHTML = g.rows.filter(function (r) { return r.gap > 0; }).map(function (r, i) {
+      return '<div class="gap-row"><span>' + (i + 1) + '. ' + esc(r.name) + '</span><span class="gap-bar"><i style="width:' + (r.gap / maxGap * 100) + '%"></i></span><span class="mono">−' + r.gap + '</span></div>';
+    }).join('') || '<p class="hint">모든 항목이 만점 예상입니다.</p>';
+  }
+
+  // ---------- creator ----------
+  var C = { results: [], reqs: [] };
+  var ST = { id: ['반영 (ID 명시)', 'ok'], kw: ['반영 추정', 'info'], partial: ['확인 필요', 'cond'], missing: ['미반영 의심', 'no'] };
+  function runCreator() {
+    var ex = extractRequirements(textToLines($('cRfp').value, '줄'));
+    C.reqs = ex.reqs;
+    var prop = textToLines($('cProp').value, '문단');
+    C.results = prop.length ? matchProposal(ex.reqs, prop) : ex.reqs.map(function (r) { return { req: r, status: null, locs: [], kw: [], hit: [] }; });
+    var cnt = {}; C.results.forEach(function (r) { cnt[r.status] = (cnt[r.status] || 0) + 1; });
+    $('cSum').innerHTML = '<span class="chip mute">요구사항 ' + ex.reqs.length + '건</span>' + Object.keys(ST).map(function (k) { return cnt[k] ? '<span class="chip ' + ST[k][1] + '">' + ST[k][0] + ' ' + cnt[k] + '</span>' : ''; }).join('');
+    $('cRows').innerHTML = C.results.map(function (r) {
+      var q = r.req, st = r.status ? ST[r.status] : null;
+      var ev = r.status === 'id' ? 'ID 기재' : r.status ? '핵심어 ' + r.hit.length + '/' + r.kw.length : '';
+      return '<tr><td class="mono"><b>' + esc(q.id) + '</b></td><td>' + esc(q.name) + '<div class="why">' + esc(q.cat) + '</div></td><td class="mono">' + esc(q.loc) + '</td><td>' + (st ? '<span class="chip ' + st[1] + '">' + st[0] + '</span>' : '<span class="chip mute">제안서 없음</span>') + '</td><td class="why">' + esc(r.locs.join(', ')) + (ev ? '<br>' + ev : '') + '</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="hint">요구사항 고유번호(예: SFR-001)를 찾지 못했습니다.</td></tr>';
+    var groups = {}; ex.reqs.forEach(function (r) { (groups[r.cat] = groups[r.cat] || []).push(r); });
+    var roman = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ', 'Ⅶ', 'Ⅷ', 'Ⅸ', 'Ⅹ', 'Ⅺ', 'Ⅻ'], n = 0;
+    var toc = 'Ⅰ. 제안 개요\n  1. 사업 이해\n  2. 추진 전략\n';
+    Object.keys(groups).forEach(function (cat) { n++; toc += roman[n] + '. ' + cat + ' 요구사항 대응\n' + groups[cat].map(function (r, i) { return '  ' + (i + 1) + '. ' + r.name + ' (' + r.id + ')'; }).join('\n') + '\n'; });
+    toc += roman[n + 1] + '. 요구사항 추적표 (부록)';
+    $('cToc').textContent = toc;
+    var keep = $('cReq').value;
+    $('cReq').innerHTML = ex.reqs.map(function (r) { var res = C.results.find(function (x) { return x.req.id === r.id; }); var flag = res && (res.status === 'missing' || res.status === 'partial') ? ' — ' + ST[res.status][0] : ''; return '<option value="' + r.id + '">' + r.id + ' ' + esc(r.name) + flag + '</option>'; }).join('');
+    var firstMiss = C.results.find(function (r) { return r.status === 'missing'; });
+    $('cReq').value = keep && ex.reqs.some(function (r) { return r.id === keep; }) ? keep : (firstMiss ? firstMiss.req.id : (ex.reqs[0] || {}).id);
+  }
+  $('cRun').addEventListener('click', runCreator);
+  $('cCopy').addEventListener('click', function () {
+    var t = $('cToc').textContent;
+    try { navigator.clipboard.writeText(t).then(function () { $('cCopyMsg').textContent = '목차를 복사했습니다.'; }, function () { $('cCopyMsg').textContent = '자동 복사가 막혀 있습니다. 목차를 직접 선택해 복사하세요.'; }); }
+    catch (e) { $('cCopyMsg').textContent = '자동 복사가 막혀 있습니다. 목차를 직접 선택해 복사하세요.'; }
+  });
+  var sample = null, ctl = null;
+  $('cAi').disabled = true;
+  if (window.claude && window.claude.use) {
+    window.claude.use('sample').then(function (fn) {
+      sample = fn;
+      if (sample) $('cAi').disabled = false;
+      else $('cAiNote').textContent = '이 화면에서는 AI 호출을 쓸 수 없습니다(공유 링크 등). 나머지 기능은 그대로 쓸 수 있습니다.';
+    });
+  } else { $('cAiNote').textContent = '이 화면에서는 AI 호출을 쓸 수 없습니다. 나머지 기능은 그대로 쓸 수 있습니다.'; }
+  var ERR = { not_granted: 'Claude 사용이 허용되지 않아 AI 초안을 쓸 수 없습니다.', sampling_disabled: '이 계정에서는 AI 초안을 쓸 수 없습니다.', rate_limited: '요청이 많습니다. 잠시 후 다시 눌러 주세요.', refused: '이 요구사항으로는 초안을 만들지 못했습니다. 다른 요구사항을 골라 보세요.', session_expired: '다시 로그인한 뒤 시도하세요.' };
+  $('cAi').addEventListener('click', async function () {
+    if (!sample) return;
+    var r = C.reqs.find(function (x) { return x.id === $('cReq').value; }); if (!r) return;
+    var prompt = '당신은 한국 공공 SW 사업 제안서 작성자입니다. 아래 RFP 요구사항에 대한 제안서 「대응 방안」 문단 초안을 한국어로 작성하세요.\n\n' +
+      '[요구사항]\n고유번호: ' + r.id + '\n분류: ' + r.cat + '\n명칭: ' + r.name + '\n정의: ' + (r.def || '(없음)') + '\n원문: ' + r.text.slice(0, 600) + '\n\n' +
+      '[제안사]\n' + S.profile.name + ' (공공 SW·웹 구축 중소기업)\n\n' +
+      '[작성 규칙]\n- 첫 줄에 「' + r.id + ' ' + r.name + ' 대응 방안」 제목\n- 4~6문장, 공공 제안서 문체(~합니다)\n- 요구사항의 세부 내용을 빠짐없이 다룰 것\n' +
+      '- 회사 실적, 인력 수, 수치, 제품명처럼 사실 확인이 필요한 내용은 지어내지 말고 [확인 필요: 무엇]으로 남길 것\n- 마지막 줄에 「충족 요구사항: ' + r.id + '」';
+    ctl = new AbortController();
+    $('cAi').disabled = true; $('cStop').hidden = false; $('cAiOut').textContent = '작성 중…';
+    try {
+      var res = await sample(prompt, { signal: ctl.signal, cache: false, onText: function (u) { $('cAiOut').textContent = u.text; } });
+      $('cAiOut').textContent = res.text + '\n\n— AI 생성 초안 · 제출 전 사람 검토 필요';
+    } catch (e) {
+      if (e && e.code === 'cancelled') $('cAiOut').textContent = (e.text || '') + (e.text ? '\n\n(중지됨)' : '중지했습니다.');
+      else { $('cAiOut').textContent = (e && e.text) || ''; $('cAiNote').textContent = ERR[e && e.code] || 'AI 초안을 받지 못했습니다. 다시 눌러 주세요.'; if (e && (e.code === 'not_granted' || e.code === 'sampling_disabled')) sample = null; }
+    } finally { $('cStop').hidden = true; $('cAi').disabled = !sample; }
+  });
+  $('cStop').addEventListener('click', function () { if (ctl) ctl.abort(); });
+
+  // ---------- shield ----------
+  $('qualRows').addEventListener('input', function (e) {
+    var i = e.target.getAttribute('data-i'), f = e.target.getAttribute('data-f'); if (i == null) return;
+    S.qual[+i][f] = +e.target.value || 0; renderQualTotal();
+  });
+  $('qPass').addEventListener('input', renderQualTotal);
+  function renderQual() {
+    $('qualRows').innerHTML = S.qual.map(function (it, i) {
+      return '<tr><td>' + esc(it.name) + '</td><td class="num"><input type="number" data-i="' + i + '" data-f="max" value="' + it.max + '" aria-label="' + esc(it.name) + ' 배점"></td><td class="num"><input type="number" data-i="' + i + '" data-f="mine" value="' + it.mine + '" step="0.5" aria-label="' + esc(it.name) + ' 예상 점수"></td></tr>';
+    }).join('');
+    renderQualTotal();
+  }
+  function renderQualTotal() {
+    var t = S.qual.reduce(function (a, x) { return a + x.mine; }, 0), pass = +$('qPass').value || 0;
+    $('qTotal').textContent = t.toFixed(1);
+    var short = S.qual.filter(function (x) { return x.max > 0 && x.mine < x.max; }).sort(function (a, b) { return (b.max - b.mine) - (a.max - a.mine); });
+    $('qVerdict').innerHTML = (t >= pass ? '<span class="chip ok">통과 예상</span>' : '<span class="chip no">미달 ' + (pass - t).toFixed(1) + '점</span>') +
+      (short.length ? '<div class="why" style="margin-top:4px">감점 큰 항목: ' + esc(short[0].name) + ' (−' + (short[0].max - short[0].mine) + ')</div>' : '');
+  }
+  function runShield() {
+    var text = $('sNotice').value, docs = extractDocs(text), dates = extractDates(text);
+    $('sDocs').innerHTML = docs.map(function (d, i) { var id = 'doc' + i; return '<li><label for="' + id + '"><input type="checkbox" id="' + id + '" data-d="' + esc(d) + '"' + (S.checked[d] ? ' checked' : '') + '> ' + esc(d) + '</label></li>'; }).join('') || '<li class="hint">「제출 서류」 항목을 찾지 못했습니다.</li>';
+    $('sDates').innerHTML = dates.map(function (x) { var d = dday(x.date, NOW); return '<div class="row"><span class="chip ' + (d < 0 ? 'mute' : d <= 7 ? 'no' : 'info') + ' mono">' + (d < 0 ? '지남' : 'D-' + d) + '</span>' + esc(x.label) + ' <span class="mono why">' + x.date.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) + '</span></div>'; }).join('') || '<p class="hint">날짜·시각을 찾지 못했습니다.</p>';
+    shieldProgress();
+  }
+  function shieldProgress() {
+    var boxes = $('sDocs').querySelectorAll('input'), n = Array.prototype.filter.call(boxes, function (x) { return x.checked; }).length;
+    $('sCount').textContent = boxes.length ? '준비 ' + n + ' / ' + boxes.length + '건' : '';
+    $('sBar').style.width = (boxes.length ? n / boxes.length * 100 : 0) + '%';
+  }
+  $('sDocs').addEventListener('change', function (e) { var d = e.target.getAttribute('data-d'); if (d != null) { S.checked[d] = e.target.checked; shieldProgress(); } });
+  $('sRun').addEventListener('click', runShield);
+
+  // ---------- render ----------
+  function render() {
+    fillActive();
+    if (S.tab === 'dash') renderDash();
+    if (S.tab === 'scout') renderScout();
+    if (S.tab === 'strat') renderStrat();
+  }
+  loadProfile();
+  $('cRfp').value = DEMO_RFP; $('cProp').value = DEMO_PROPOSAL; runCreator();
+  $('sNotice').value = DEMO_NOTICE; renderQual(); runShield();
+  var t0 = 'dash'; try { t0 = localStorage.getItem('g2bmm.tab') || 'dash'; } catch (e) {}
+  go(TABS.some(function (t) { return t.k === t0; }) ? t0 : 'dash');
+})();
+</script>
+
+<footer style="display:block;max-width:1180px;margin:32px auto 0;padding:14px 0 24px;border-top:1px solid currentColor;font-size:12px;line-height:1.7;opacity:.72;font-family:inherit">본 화면은 AI Biz Lab 포트폴리오용 프로토타입이며 실제 서비스가 아닙니다. 기업·데이터·금액은 모두 가상 데이터와 가정값이고, 판정·계산 결과는 법률·재무·입찰 자문을 대신하지 않습니다. AI 초안 작성 기능은 이 공개 데모에서 제공하지 않습니다.<br><a href="../" style="color:inherit;display:inline;margin:0;padding:0">← 데모 목록</a> · <a href="https://aibizlabofficial.com" style="color:inherit;display:inline;margin:0;padding:0">aibizlabofficial.com</a> · © 2026 AI Biz Lab</footer>
+</body>
+</html>

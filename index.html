@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>AI Biz Lab 프로토타입 데모</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap">
+<style>
+/* Layout: a short catalogue page — one heading, three demo entries in the order of the portfolio, a process strip that explains what each entry went through */
+:root {
+  --bg: #F4F5F3; --surface: #FFFFFF; --ink: #1B2126; --muted: #5C666D; --line: #D6DCDA;
+  --accent: #1F4E5A; --accent-soft: #E1ECEC;
+  --g2b: #1F3A5F; --rt: #1F5E63; --ax: #2443B8;
+  --f-body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --f-display: 'Noto Serif KR', 'AppleMyungjo', 'Batang', serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #101517; --surface: #172024; --ink: #E3EAEA; --muted: #97A6A9; --line: #2A373B;
+  --accent: #7CB9C2; --accent-soft: #1B3135; --g2b: #8EAEDB; --rt: #74B9BB; --ax: #8FA4F5; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #101517; --surface: #172024; --ink: #E3EAEA; --muted: #97A6A9; --line: #2A373B;
+  --accent: #7CB9C2; --accent-soft: #1B3135; --g2b: #8EAEDB; --rt: #74B9BB; --ax: #8FA4F5; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.65; padding-inline: 16px; padding-block: 0 32px; margin: 0 }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px }
+header { padding-block: 48px 8px; display: grid; gap: 10px }
+.eyebrow { font-size: .78rem; letter-spacing: .08em; color: var(--accent); font-weight: 600 }
+h1 { font-family: var(--f-display); font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.3; margin: 0; text-wrap: balance }
+.lead { color: var(--muted); max-width: 62ch; margin: 0 }
+.process { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: .84rem; color: var(--muted); padding: 12px 14px; background: var(--accent-soft); border-radius: 8px }
+.process b { color: var(--ink); font-weight: 500 }
+.process span.arrow { color: var(--accent) }
+.demos { display: grid; gap: 16px }
+.demo { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: 16px 24px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; border-top: 3px solid var(--c) }
+.demo h2 { font-family: var(--f-display); font-size: 1.25rem; margin: 0 0 4px; color: var(--ink) }
+.demo .kind { font-size: .8rem; color: var(--c); font-weight: 600; margin: 0 0 6px }
+.demo p { margin: 0; color: var(--muted); font-size: .92rem }
+.demo ul { margin: 0; padding-left: 18px; font-size: .86rem; color: var(--ink) }
+.demo li + li { margin-top: 2px }
+.open { display: inline-block; text-decoration: none; font-weight: 600; font-size: .92rem; color: var(--surface); background: var(--c); padding: 10px 16px; border-radius: 6px; white-space: nowrap }
+.open:focus-visible { outline: 2px solid var(--c); outline-offset: 3px }
+.open:hover { filter: brightness(1.08) }
+@media (max-width: 820px) { .demo { grid-template-columns: minmax(0, 1fr) } .open { justify-self: start } }
+.g2b { --c: var(--g2b) } .rt { --c: var(--rt) } .ax { --c: var(--ax) }
+.notes { display: grid; gap: 6px; font-size: .86rem; color: var(--muted) }
+.notes h3 { font-size: .92rem; color: var(--ink); margin: 0 0 4px }
+.notes p { margin: 0 }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between }
+footer a { color: var(--accent) }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">AI BIZ LAB · 실무 수행 포트폴리오</div>
+    <h1>AI 비즈니스 모델 프로토타입 데모</h1>
+    <p class="lead">AI Biz Lab의 사업화 프로세스로 고도화한 세 가지 비즈니스 모델의 프로토타입입니다. 모두 가상 데이터로 작동하며, 브라우저에서 바로 조작해 볼 수 있습니다.</p>
+  </header>
+
+  <div class="process" aria-label="수행 프로세스">
+    <b>③ 사업계획서 고도화·검수</b><span class="arrow">→</span><b>④ 정부지원사업 매칭·적합성 진단</b><span class="arrow">→</span><b>⑤ 비즈니스 모델 기획·프로토타입 제작</b>
+    <span>· 세 모델 모두 「기존 중소 SI기업의 신사업」을 전제로 수행</span>
+  </div>
+
+  <section class="demos" aria-label="데모 목록">
+    <article class="demo g2b">
+      <div>
+        <p class="kind">공공입찰 All-in-One 전략 지휘 플랫폼</p>
+        <h2>G2B MasterMind 수주 통제실</h2>
+        <p>공고 탐색부터 서류 점검까지, 공공 SW 입찰의 네 단계를 한 화면에서 관리합니다.</p>
+      </div>
+      <ul>
+        <li>Scout: 기업 조건으로 참가 가능성 판정</li>
+        <li>Strategist: 적격심사 예정가격 시뮬레이션·협상 배점 분석</li>
+        <li>Creator: RFP 요구사항 추적과 제안서 목차</li>
+        <li>Shield: 자가 채점과 제출서류·일정 점검</li>
+      </ul>
+      <a class="open" href="g2b-mastermind/">데모 열기</a>
+    </article>
+    <article class="demo rt">
+      <div>
+        <p class="kind">AI 컴플라이언스 자동화 및 리스크 관리 플랫폼</p>
+        <h2>AI RegTech 컴플라이언스 콘솔</h2>
+        <p>AI 기본법 책무를 판단하고 이행 기록을 증적 대장에 쌓습니다.</p>
+      </div>
+      <ul>
+        <li>Governance Hub: 고영향 해당성 판단과 책무 관리</li>
+        <li>Transparency: 생성 결과물 표시 방식 안내</li>
+        <li>Safety Guard: 환각·프롬프트 공격 검사</li>
+        <li>Shadow AI: 미승인 AI 정책과 부서별 집계</li>
+      </ul>
+      <a class="open" href="ai-regtech/">데모 열기</a>
+    </article>
+    <article class="demo ax">
+      <div>
+        <p class="kind">에이전틱 AI 기반 AX 올인원 플랫폼</p>
+        <h2>AXAP AX 콘솔</h2>
+        <p>AX 진단에서 바우처 과제, 승인 기반 에이전트 실행, 운영 대행까지 따라갑니다.</p>
+      </div>
+      <ul>
+        <li>AX 진단: 업무 점수화와 단계별 로드맵</li>
+        <li>바우처 패키지: 과제 금액 구성과 영업 깔때기</li>
+        <li>에이전트 실행: 단계별 사람 승인과 기록</li>
+        <li>IntOps·PII Shield·Foundry: 라우팅 비용, 개인정보 마스킹, 배포 관문</li>
+      </ul>
+      <a class="open" href="axap/">데모 열기</a>
+    </article>
+  </section>
+
+  <section class="notes" aria-label="이용 안내">
+    <h3>이용 안내</h3>
+    <p>모든 기업·공고·시스템·로그·금액은 가상 데이터와 화면에서 바꿀 수 있는 가정값입니다. 판정과 계산 결과는 법률·재무·입찰 자문을 대신하지 않습니다.</p>
+    <p>원래 프로토타입에 있던 AI 초안 작성 기능은 이 공개 데모에서는 꺼져 있습니다. 나머지 기능은 모두 작동하며, 입력한 내용은 저장되지 않고 페이지를 닫으면 초기화됩니다.</p>
+  </section>
+
+  <footer>
+    <span>© 2026 AI Biz Lab · 포트폴리오용 프로토타입이며 실제 서비스가 아닙니다.</span>
+    <a href="https://aibizlabofficial.com">aibizlabofficial.com</a>
+  </footer>
+</div>
+
+</body>
+</html>
